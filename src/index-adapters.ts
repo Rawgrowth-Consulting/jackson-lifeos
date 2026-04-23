@@ -359,28 +359,49 @@ async function main(): Promise<void> {
 
   logger.info({ agentId: AGENT_ID }, 'Starting RawClaw v3...');
 
-  await bot.start({
-    onStart: (botInfo) => {
-      setTelegramConnected(true);
-      setBotInfo(botInfo.username ?? '', botInfo.first_name ?? 'RawClaw');
-      logger.info({ username: botInfo.username }, 'RawClaw is running');
+  // Retry bot.start() on 409 conflicts (stale Telegram long-poll from previous instance).
+  const MAX_RETRIES = 10;
+  const RETRY_DELAY_MS = 10_000;
 
-      const runningAdapters = registry.getRunningAdapterNames();
-      const adapterList = runningAdapters.length > 0
-        ? ` + ${runningAdapters.join(', ')}`
-        : '';
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await bot.start({
+        onStart: (botInfo) => {
+          setTelegramConnected(true);
+          setBotInfo(botInfo.username ?? '', botInfo.first_name ?? 'RawClaw');
+          logger.info({ username: botInfo.username }, 'RawClaw is running');
 
-      if (AGENT_ID === 'main') {
-        console.log(`\n  RawClaw v3 online: @${botInfo.username}${adapterList}`);
-        if (!ALLOWED_CHAT_ID) {
-          console.log(`  Send /chatid to get your chat ID for ALLOWED_CHAT_ID`);
-        }
-        console.log();
-      } else {
-        console.log(`\n  RawClaw v3 agent [${AGENT_ID}] online: @${botInfo.username}${adapterList}\n`);
+          const runningAdapters = registry.getRunningAdapterNames();
+          const adapterList = runningAdapters.length > 0
+            ? ` + ${runningAdapters.join(', ')}`
+            : '';
+
+          if (AGENT_ID === 'main') {
+            console.log(`\n  RawClaw v3 online: @${botInfo.username}${adapterList}`);
+            if (!ALLOWED_CHAT_ID) {
+              console.log(`  Send /chatid to get your chat ID for ALLOWED_CHAT_ID`);
+            }
+            console.log();
+          } else {
+            console.log(`\n  RawClaw v3 agent [${AGENT_ID}] online: @${botInfo.username}${adapterList}\n`);
+          }
+        },
+      });
+      break;
+    } catch (err: unknown) {
+      const is409 = err instanceof Error && err.message.includes('409');
+      if (is409 && attempt < MAX_RETRIES) {
+        logger.warn(
+          { attempt, maxRetries: MAX_RETRIES },
+          'Telegram 409 conflict (stale poll). Retrying in %ds...',
+          RETRY_DELAY_MS / 1000,
+        );
+        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+        continue;
       }
-    },
-  });
+      throw err;
+    }
+  }
 }
 
 main().catch((err: unknown) => {

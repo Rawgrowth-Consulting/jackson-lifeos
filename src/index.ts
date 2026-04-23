@@ -252,22 +252,44 @@ async function main(): Promise<void> {
 
   logger.info({ agentId: AGENT_ID }, 'Starting RawClaw...');
 
-  await bot.start({
-    onStart: (botInfo) => {
-      setTelegramConnected(true);
-      setBotInfo(botInfo.username ?? '', botInfo.first_name ?? 'RawClaw');
-      logger.info({ username: botInfo.username }, 'RawClaw is running');
-      if (AGENT_ID === 'main') {
-        console.log(`\n  RawClaw online: @${botInfo.username}`);
-        if (!ALLOWED_CHAT_ID) {
-          console.log(`  Send /chatid to get your chat ID for ALLOWED_CHAT_ID`);
-        }
-        console.log();
-      } else {
-        console.log(`\n  RawClaw agent [${AGENT_ID}] online: @${botInfo.username}\n`);
+  // Retry bot.start() on 409 conflicts (stale Telegram long-poll from previous instance).
+  // Instead of crashing and restart-looping via systemd, wait for the old poll to expire.
+  const MAX_RETRIES = 10;
+  const RETRY_DELAY_MS = 10_000; // 10 seconds between retries
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await bot.start({
+        onStart: (botInfo) => {
+          setTelegramConnected(true);
+          setBotInfo(botInfo.username ?? '', botInfo.first_name ?? 'RawClaw');
+          logger.info({ username: botInfo.username }, 'RawClaw is running');
+          if (AGENT_ID === 'main') {
+            console.log(`\n  RawClaw online: @${botInfo.username}`);
+            if (!ALLOWED_CHAT_ID) {
+              console.log(`  Send /chatid to get your chat ID for ALLOWED_CHAT_ID`);
+            }
+            console.log();
+          } else {
+            console.log(`\n  RawClaw agent [${AGENT_ID}] online: @${botInfo.username}\n`);
+          }
+        },
+      });
+      break; // Connected successfully
+    } catch (err: unknown) {
+      const is409 = err instanceof Error && err.message.includes('409');
+      if (is409 && attempt < MAX_RETRIES) {
+        logger.warn(
+          { attempt, maxRetries: MAX_RETRIES },
+          'Telegram 409 conflict (stale poll). Retrying in %ds...',
+          RETRY_DELAY_MS / 1000,
+        );
+        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+        continue;
       }
-    },
-  });
+      throw err; // Non-409 error or max retries exhausted
+    }
+  }
 }
 
 main().catch((err: unknown) => {
