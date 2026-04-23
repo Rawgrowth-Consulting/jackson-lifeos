@@ -2314,83 +2314,48 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
   const body = `
   <div class="animate-lift-in">
     <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Agents</h1>
-    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Your AI team — chat, delegate, orchestrate.</p>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Your AI team -- chat, delegate, orchestrate.</p>
   </div>
 
-  <!-- Agent Cards -->
-  <div class="agents-grid animate-lift-in delay-1" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:36px;">
-
-    <div class="card card-hover" style="margin-bottom:0;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-        <div style="width:44px;height:44px;border-radius:12px;background:rgba(126,163,126,0.15);display:flex;align-items:center;justify-content:center;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="4"/></svg>
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);">Gurt <span style="font-size:11px;color:var(--color-sage-muted);font-weight:400;">(CEO)</span></div>
-          <span class="pill pill-active" style="margin-top:3px;">Active</span>
-        </div>
+  <!-- CEO Card -->
+  <div id="agents-ceo-card" class="card card-hover animate-lift-in" style="margin-bottom:20px;border-left:3px solid #8B5CF6;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div id="agents-ceo-avatar" style="width:44px;height:44px;border-radius:12px;background:rgba(126,163,126,0.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#09321f;">G</div>
+      <div style="flex:1;">
+        <div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);" id="agents-ceo-name">Loading...</div>
+        <span class="pill pill-active" style="margin-top:3px;" id="agents-ceo-status">Active</span>
       </div>
-      <p style="font-size:12px;color:var(--color-sage-muted);margin:0 0 14px;">Your primary AI assistant</p>
-      <button class="los-btn" style="width:100%;font-size:12px;padding:9px;" onclick="document.getElementById('agentChatArea').scrollIntoView({behavior:'smooth'})">Chat</button>
+      <button class="los-btn" style="font-size:12px;padding:9px 16px;" onclick="document.getElementById('agentChatArea').scrollIntoView({behavior:'smooth'})">Chat</button>
     </div>
-
-    ${[
-      ['Researcher', 'Deep research on any topic'],
-      ['Sales', 'Write copy, emails, text messages'],
-      ['Content', 'Content ideas, posts, brand voice'],
-      ['Finance', 'Financial analysis, projections'],
-      ['Ideation', 'Identifies blind spots across all data'],
-    ].map(([name, desc]) => `
-    <div class="card" style="opacity:0.55;margin-bottom:0;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-        <div style="width:44px;height:44px;border-radius:12px;background:var(--color-stone-50);display:flex;align-items:center;justify-content:center;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-sage-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="4"/></svg>
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);">${name}</div>
-          <span class="pill pill-soon" style="margin-top:3px;">Coming Soon</span>
-        </div>
-      </div>
-      <p style="font-size:12px;color:var(--color-sage-muted);margin:0;">${desc}</p>
-    </div>`).join('')}
-
   </div>
+
+  <!-- Department Grid -->
+  <div id="agents-dept-grid" class="agents-grid animate-lift-in delay-1" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:36px;">
+    <div class="text-center" style="grid-column:1/-1;padding:20px;color:var(--color-sage-muted);">Loading departments...</div>
+  </div>
+
   <style>
-    @media (max-width: 768px) {
-      .agents-grid { grid-template-columns: repeat(2, 1fr) !important; }
-    }
-    @media (max-width: 480px) {
-      .agents-grid { grid-template-columns: 1fr !important; }
-    }
+    @media (max-width: 768px) { .agents-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+    @media (max-width: 480px) { .agents-grid { grid-template-columns: 1fr !important; } }
   </style>
 
   <!-- Chat Interface -->
-  <div id="agentChatArea" class="section-title animate-lift-in delay-2">Chat with Gurt</div>
+  <div id="agentChatArea" class="section-title animate-lift-in delay-2">Chat</div>
   <div class="card animate-lift-in delay-2" style="padding:0;overflow:hidden;display:flex;flex-direction:column;height:500px;">
-    <!-- Chat Header -->
     <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--color-forest);flex-shrink:0;">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--color-sage);box-shadow:0 0 6px rgba(126,163,126,0.5);"></div>
-      <div style="font-size:15px;font-weight:600;color:var(--color-cream);">Gurt</div>
-      <span style="font-size:11px;color:rgba(245,239,233,0.6);">Online</span>
+      <div style="font-size:15px;font-weight:600;color:var(--color-cream);" id="agentChatName">Gurt</div>
+      <span style="font-size:11px;color:rgba(245,239,233,0.6);" id="agentChatStatus">Online</span>
     </div>
-
-    <!-- Messages -->
+    <div id="agentChatTabs" style="display:flex;gap:0;border-bottom:1px solid var(--color-stone-50);overflow-x:auto;background:var(--color-paper);"></div>
     <div id="agentMessages" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:10px;background:var(--color-cream-soft);">
-      <div class="chat-bubble chat-bubble-assistant">
-        Hey Jackson! I'm Gurt, your primary AI assistant. What can I help you with today? I can help with sales strategy, recruiting pipelines, content ideas, or anything else on your mind.
-      </div>
+      <div class="chat-bubble chat-bubble-assistant">Hey Jackson! What do you need?</div>
     </div>
-
-    <!-- Typing indicator (hidden by default) -->
     <div id="agentTyping" style="display:none;padding:0 20px 8px;background:var(--color-cream-soft);">
       <div class="chat-bubble chat-bubble-assistant chat-typing" style="display:inline-flex;">
-        <div class="chat-typing-dot"></div>
-        <div class="chat-typing-dot"></div>
-        <div class="chat-typing-dot"></div>
+        <div class="chat-typing-dot"></div><div class="chat-typing-dot"></div><div class="chat-typing-dot"></div>
       </div>
     </div>
-
-    <!-- Input -->
     <div style="display:flex;gap:10px;padding:14px 20px;background:var(--color-paper);border-top:1px solid var(--color-stone-50);flex-shrink:0;">
       <input type="text" id="agentInput" class="los-input" style="flex:1;border-radius:999px;padding:10px 18px;" placeholder="Message Gurt..." onkeydown="if(event.key==='Enter')sendAgentMessage()">
       <button class="los-btn" onclick="sendAgentMessage()" style="padding:10px 20px;">Send</button>
@@ -2398,69 +2363,144 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
   </div>
 
   <script>
+  var activeAgent = 'main';
+  var agentSSE = null;
+
+  async function loadAgentsPage() {
+    try {
+      var results = await Promise.all([
+        fetch('/api/agents').then(function(r) { return r.json(); }),
+        fetch('/api/departments').then(function(r) { return r.json(); }),
+      ]);
+      var agents = results[0].agents || [];
+      var depts = results[1].departments || [];
+
+      var main = agents.find(function(a) { return a.id === 'main'; });
+      if (main) {
+        document.getElementById('agents-ceo-name').textContent = main.name + ' (CEO)';
+        document.getElementById('agents-ceo-avatar').textContent = main.name.charAt(0);
+        document.getElementById('agents-ceo-status').textContent = main.running ? 'Active' : 'Offline';
+        document.getElementById('agents-ceo-status').className = main.running ? 'pill pill-active' : 'pill pill-soon';
+      }
+
+      var grid = document.getElementById('agents-dept-grid');
+      var subAgents = agents.filter(function(a) { return a.id !== 'main'; });
+      var mainName = main ? main.name.toLowerCase() : '';
+
+      grid.innerHTML = depts.map(function(d) {
+        var deptAgents = subAgents.filter(function(a) {
+          var hay = (a.id + ' ' + a.name + ' ' + (a.description || '')).toLowerCase();
+          return hay.includes(d.id) || hay.includes(d.name.toLowerCase());
+        });
+        var hasAgent = deptAgents.length > 0;
+        var isLive = deptAgents.some(function(a) { return a.running; });
+        var opacity = hasAgent ? '1' : '0.65';
+        var statusPill = hasAgent
+          ? (isLive ? '<span class="pill pill-active">Active</span>' : '<span class="pill pill-soon">Offline</span>')
+          : '<span class="pill pill-soon">No Agent</span>';
+        var chips = deptAgents.map(function(a) {
+          var dot = a.running ? '#22c55e' : '#9ca3af';
+          return '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(5,36,21,0.04);border-radius:12px;padding:2px 8px;font-size:11px;color:var(--color-forest-deep);margin-top:6px;cursor:pointer" onclick="switchAgent(\'' + a.id + '\')">' +
+            '<span style="width:5px;height:5px;border-radius:50%;background:' + dot + '"></span>' + a.name + '</span>';
+        }).join(' ');
+        return '<div class="card" style="opacity:' + opacity + ';margin-bottom:0;border-left:3px solid ' + d.color + '">' +
+          '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">' +
+            '<div style="font-size:20px;">' + d.emoji + '</div>' +
+            '<div style="flex:1;"><div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);">' + d.name + '</div>' + statusPill + '</div>' +
+          '</div>' +
+          '<p style="font-size:12px;color:var(--color-sage-muted);margin:0;">' + d.description + '</p>' +
+          (chips ? '<div style="margin-top:4px">' + chips + '</div>' : '') +
+        '</div>';
+      }).join('');
+
+      var tabs = document.getElementById('agentChatTabs');
+      var mainTab = '<button style="padding:8px 14px;font-size:12px;font-weight:600;border:none;border-bottom:2px solid var(--color-sage);background:none;color:var(--color-forest-deep);cursor:pointer" onclick="switchAgent(\'main\')" id="tab-main">' + (main ? main.name : 'Main') + '</button>';
+      var otherTabs = subAgents.filter(function(a) { return a.name.toLowerCase() !== mainName; }).map(function(a) {
+        return '<button style="padding:8px 14px;font-size:12px;font-weight:500;border:none;border-bottom:2px solid transparent;background:none;color:var(--color-sage-muted);cursor:pointer" onclick="switchAgent(\'' + a.id + '\')" id="tab-' + a.id + '">' + a.name + '</button>';
+      }).join('');
+      tabs.innerHTML = mainTab + otherTabs;
+      connectAgentSSE();
+    } catch(e) {
+      console.error('Failed to load agents page:', e);
+      document.getElementById('agents-dept-grid').innerHTML = '<div style="grid-column:1/-1;color:var(--color-clay);padding:20px;">Failed to load. Please log in first.</div>';
+    }
+  }
+
+  function switchAgent(agentId) {
+    activeAgent = agentId;
+    document.querySelectorAll('#agentChatTabs button').forEach(function(btn) {
+      btn.style.borderBottomColor = 'transparent';
+      btn.style.color = 'var(--color-sage-muted)';
+      btn.style.fontWeight = '500';
+    });
+    var activeTab = document.getElementById('tab-' + agentId);
+    if (activeTab) {
+      activeTab.style.borderBottomColor = 'var(--color-sage)';
+      activeTab.style.color = 'var(--color-forest-deep)';
+      activeTab.style.fontWeight = '600';
+    }
+    var name = activeTab ? activeTab.textContent : agentId;
+    document.getElementById('agentChatName').textContent = name;
+    document.getElementById('agentInput').placeholder = 'Message ' + name + '...';
+    document.getElementById('agentMessages').innerHTML = '<div class="chat-bubble chat-bubble-assistant">Switched to ' + name + '. What do you need?</div>';
+  }
+
+  function connectAgentSSE() {
+    if (agentSSE) { agentSSE.close(); agentSSE = null; }
+    agentSSE = new EventSource('/api/chat/stream');
+    agentSSE.addEventListener('assistant_message', function(e) {
+      try {
+        var ev = JSON.parse(e.data);
+        if (ev.source !== 'dashboard') return;
+        document.getElementById('agentTyping').style.display = 'none';
+        var bubble = document.createElement('div');
+        bubble.className = 'chat-bubble chat-bubble-assistant';
+        bubble.innerHTML = ev.content || '';
+        document.getElementById('agentMessages').appendChild(bubble);
+        document.getElementById('agentMessages').scrollTop = document.getElementById('agentMessages').scrollHeight;
+      } catch(err) { console.error('SSE parse error', err); }
+    });
+    agentSSE.addEventListener('processing', function(e) {
+      try {
+        var ev = JSON.parse(e.data);
+        document.getElementById('agentTyping').style.display = ev.processing ? 'block' : 'none';
+      } catch {}
+    });
+    agentSSE.onerror = function() { setTimeout(connectAgentSSE, 3000); };
+  }
+
   async function sendAgentMessage() {
-    const input = document.getElementById('agentInput');
-    const msg = input.value.trim();
+    var input = document.getElementById('agentInput');
+    var msg = input.value.trim();
     if (!msg) return;
     input.value = '';
-
-    const messages = document.getElementById('agentMessages');
-    const typing = document.getElementById('agentTyping');
-
-    const userBubble = document.createElement('div');
+    var messages = document.getElementById('agentMessages');
+    var userBubble = document.createElement('div');
     userBubble.className = 'chat-bubble chat-bubble-user';
     userBubble.textContent = msg;
     messages.appendChild(userBubble);
     messages.scrollTop = messages.scrollHeight;
-
-    typing.style.display = 'block';
-
+    document.getElementById('agentTyping').style.display = 'block';
     try {
-      const res = await fetch('/api/chat/send', {
+      var payload = { message: msg };
+      if (activeAgent !== 'main') payload.agentId = activeAgent;
+      await fetch('/api/chat/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg })
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Send failed');
-
-      typing.style.display = 'none';
-
-      const assistantBubble = document.createElement('div');
-      assistantBubble.className = 'chat-bubble chat-bubble-assistant';
-      assistantBubble.textContent = '';
-      messages.appendChild(assistantBubble);
-
-      const evtSource = new EventSource('/api/chat/stream');
-      evtSource.onmessage = (e) => {
-        if (e.data === '[DONE]') {
-          evtSource.close();
-          return;
-        }
-        try {
-          const data = JSON.parse(e.data);
-          if (data.content) {
-            assistantBubble.textContent += data.content;
-            messages.scrollTop = messages.scrollHeight;
-          }
-        } catch {
-          assistantBubble.textContent += e.data;
-          messages.scrollTop = messages.scrollHeight;
-        }
-      };
-      evtSource.onerror = () => {
-        evtSource.close();
-        typing.style.display = 'none';
-      };
     } catch (err) {
-      typing.style.display = 'none';
-      const errBubble = document.createElement('div');
+      document.getElementById('agentTyping').style.display = 'none';
+      var errBubble = document.createElement('div');
       errBubble.className = 'chat-bubble chat-bubble-assistant';
-      errBubble.textContent = 'Sorry, something went wrong. Try again.';
+      errBubble.textContent = 'Something went wrong. Try again.';
       errBubble.style.color = 'var(--color-clay)';
       messages.appendChild(errBubble);
     }
     messages.scrollTop = messages.scrollHeight;
   }
+
+  loadAgentsPage();
   </script>`;
 
   return wrapPage('Agents', 'agents', body, authenticated);
