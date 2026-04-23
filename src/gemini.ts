@@ -21,14 +21,15 @@ function getClient(): GoogleGenAI {
 export async function generateContent(
   prompt: string,
   model = 'gemini-3-flash-preview',
+  options?: { temperature?: number; responseMimeType?: string },
 ): Promise<string> {
   const ai = getClient();
   const response = await ai.models.generateContent({
     model,
     contents: prompt,
     config: {
-      temperature: 0.1,
-      responseMimeType: 'application/json',
+      temperature: options?.temperature ?? 0.1,
+      responseMimeType: options?.responseMimeType ?? 'application/json',
     },
   });
   return response.text ?? '';

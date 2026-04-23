@@ -680,6 +680,73 @@ function runMigrations(database: Database.Database): void {
     `);
     logger.info('Migration: created skills_log table');
   }
+
+  // ── Selling documents table ────────────────────────────────────
+  const hasSellingDocs = database.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name='selling_documents'`,
+  ).get();
+  if (!hasSellingDocs) {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS selling_documents (
+        id          TEXT PRIMARY KEY,
+        carrier     TEXT NOT NULL,
+        filename    TEXT NOT NULL,
+        original_name TEXT NOT NULL,
+        file_size   INTEGER NOT NULL DEFAULT 0,
+        mime_type   TEXT NOT NULL DEFAULT '',
+        notes       TEXT NOT NULL DEFAULT '',
+        created_at  INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_selling_docs_carrier ON selling_documents(carrier, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_selling_docs_time ON selling_documents(created_at DESC);
+    `);
+    logger.info('Migration: created selling_documents table');
+  }
+
+  // ── Recruiting tables ──────────────────────────────────────────
+  const hasRecruits = database.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name='recruits'`,
+  ).get();
+  if (!hasRecruits) {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS recruits (
+        id              TEXT PRIMARY KEY,
+        name            TEXT NOT NULL,
+        email           TEXT NOT NULL DEFAULT '',
+        phone           TEXT NOT NULL DEFAULT '',
+        state           TEXT NOT NULL DEFAULT '',
+        source          TEXT NOT NULL DEFAULT 'form',
+        access_token    TEXT NOT NULL UNIQUE,
+        pipeline_stage  TEXT NOT NULL DEFAULT 'interested',
+        notes           TEXT NOT NULL DEFAULT '',
+        created_at      INTEGER NOT NULL,
+        last_active_at  INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_recruits_stage ON recruits(pipeline_stage);
+      CREATE INDEX IF NOT EXISTS idx_recruits_token ON recruits(access_token);
+      CREATE INDEX IF NOT EXISTS idx_recruits_time ON recruits(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS recruit_steps (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        recruit_id  TEXT NOT NULL,
+        step_key    TEXT NOT NULL,
+        completed   INTEGER NOT NULL DEFAULT 0,
+        completed_at INTEGER,
+        UNIQUE(recruit_id, step_key)
+      );
+      CREATE INDEX IF NOT EXISTS idx_recruit_steps_recruit ON recruit_steps(recruit_id);
+
+      CREATE TABLE IF NOT EXISTS recruit_chat_messages (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        recruit_id  TEXT NOT NULL,
+        role        TEXT NOT NULL,
+        content     TEXT NOT NULL,
+        created_at  INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_recruit_chat_recruit ON recruit_chat_messages(recruit_id, created_at DESC);
+    `);
+    logger.info('Migration: created recruiting tables (recruits, recruit_steps, recruit_chat_messages)');
+  }
 }
 
 /** @internal - for tests only. Creates a fresh in-memory database. */
@@ -2556,8 +2623,345 @@ export function getMemoryCount(): number {
   return (db.prepare('SELECT COUNT(*) as c FROM memories').get() as { c: number }).c;
 }
 
+// ── Selling Documents ─────────────────────────────────────────────────
+
+export interface SellingDocument {
+  id: string;
+  carrier: string;
+  filename: string;
+  original_name: string;
+  file_size: number;
+  mime_type: string;
+  notes: string;
+  created_at: number;
+}
+
+export function insertSellingDocument(doc: SellingDocument): void {
+  db.prepare(
+    `INSERT INTO selling_documents (id, carrier, filename, original_name, file_size, mime_type, notes, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(doc.id, doc.carrier, doc.filename, doc.original_name, doc.file_size, doc.mime_type, doc.notes, doc.created_at);
+}
+
+export function getSellingDocuments(carrier?: string): SellingDocument[] {
+  if (carrier) {
+    return db.prepare(
+      'SELECT * FROM selling_documents WHERE carrier = ? ORDER BY created_at DESC',
+    ).all(carrier) as SellingDocument[];
+  }
+  return db.prepare(
+    'SELECT * FROM selling_documents ORDER BY created_at DESC',
+  ).all() as SellingDocument[];
+}
+
+export function getSellingDocument(id: string): SellingDocument | undefined {
+  return db.prepare(
+    'SELECT * FROM selling_documents WHERE id = ?',
+  ).get(id) as SellingDocument | undefined;
+}
+
+export function deleteSellingDocument(id: string): boolean {
+  const result = db.prepare('DELETE FROM selling_documents WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
 // ── v2: Session clearing (for session compaction) ────────────────────
 
 export function clearSessionForAgent(agentId: string): void {
   db.prepare('DELETE FROM sessions WHERE agent_id = ?').run(agentId);
+}
+
+// ── Recruiting ──────────────────────────────────────────────────────────────────
+
+export const RECRUIT_PIPELINE_STAGES = [
+  'interested',
+  'getting_started',
+  'pre_licensing',
+  'exam_prep',
+  'licensed',
+  'contracting',
+  'appointed',
+] as const;
+
+export type RecruitPipelineStage = (typeof RECRUIT_PIPELINE_STAGES)[number];
+
+export interface RecruitPhase {
+  label: string;
+  pipelineStage: RecruitPipelineStage;
+  steps: { key: string; label: string }[];
+}
+
+export const RECRUIT_PHASES: Record<string, RecruitPhase> = {
+  getting_started: {
+    label: 'Step 1: Schedule Your State Exam',
+    pipelineStage: 'getting_started',
+    steps: [
+      { key: 'getting_started.find_state', label: 'Find your state exam instructions on Prepare2Pass' },
+      { key: 'getting_started.register_exam', label: 'Register and pay for your LIFE exam' },
+      { key: 'getting_started.schedule_exam', label: 'Choose your exam date and time' },
+      { key: 'getting_started.forward_confirmation', label: 'Forward your exam confirmation email to admin' },
+    ],
+  },
+  pre_licensing: {
+    label: 'Step 2: Enroll in Pre-Licensing Course (XCEL)',
+    pipelineStage: 'pre_licensing',
+    steps: [
+      { key: 'pre_licensing.visit_xcel', label: 'Visit the XCEL Solutions enrollment page' },
+      { key: 'pre_licensing.select_course', label: 'Select your state, Life pre-licensing, and course type' },
+      { key: 'pre_licensing.create_account', label: 'Create your XCEL account and complete checkout' },
+      { key: 'pre_licensing.complete_course', label: 'Complete the pre-licensing coursework' },
+      { key: 'pre_licensing.confirm_enrolled', label: 'Reply ENROLLED to admin email' },
+    ],
+  },
+  exam_prep: {
+    label: 'Step 3: Pass Your State Exam',
+    pipelineStage: 'exam_prep',
+    steps: [
+      { key: 'exam_prep.study', label: 'Study and prepare for the exam' },
+      { key: 'exam_prep.take_exam', label: 'Take and pass your state Life exam' },
+      { key: 'exam_prep.get_npn', label: 'Get your NPN (National Producer Number) from NIPR' },
+    ],
+  },
+  licensed: {
+    label: 'Step 3: Gather Contracting Requirements',
+    pipelineStage: 'licensed',
+    steps: [
+      { key: 'licensed.eo_insurance', label: 'Purchase E&O insurance via NAPA ($1M/$1M minimum)' },
+      { key: 'licensed.voided_check', label: 'Get a voided check or bank letter for direct deposit' },
+      { key: 'licensed.pro_email', label: 'Create a professional email address' },
+      { key: 'licensed.send_docs', label: 'Send NPN, E&O, voided check, and email to admin' },
+    ],
+  },
+  contracting: {
+    label: 'Step 4: Create Your SureLC Account',
+    pipelineStage: 'contracting',
+    steps: [
+      { key: 'contracting.create_surelc', label: 'Create your SureLC account using the provided link' },
+      { key: 'contracting.watch_videos', label: 'Watch the SureLC walkthrough videos' },
+      { key: 'contracting.complete_profile', label: 'Complete your SureLC profile (no red/yellow dots)' },
+      { key: 'contracting.aml_training', label: 'Complete Anti-Money Laundering (AML) training' },
+      { key: 'contracting.save_aml_cert', label: 'Save your AML certificate' },
+    ],
+  },
+  appointed: {
+    label: 'Step 5: Complete NLC Onboarding',
+    pipelineStage: 'appointed',
+    steps: [
+      { key: 'appointed.login_gateway', label: 'Log in to Gateway using your HCMS login' },
+      { key: 'appointed.complete_onboarding', label: 'Complete NLC onboarding profile' },
+      { key: 'appointed.upload_aml', label: 'Upload AML certificate to NLC Trainings tab' },
+      { key: 'appointed.submit_contracts', label: 'Submit carrier contracts (Aetna, Americo, American Amicable, Corebridge, Ethos, Mutual of Omaha, TransAmerica)' },
+      { key: 'appointed.enter_codes', label: 'Enter verification codes and confirm submissions' },
+      { key: 'appointed.notify_admin', label: 'Notify admin that all contracts have been submitted' },
+      { key: 'appointed.new_agent_bootcamp', label: 'Complete New Agent Bootcamp videos' },
+    ],
+  },
+};
+
+/** Flat list of all step keys across all phases. */
+export const ALL_RECRUIT_STEP_KEYS = Object.values(RECRUIT_PHASES).flatMap((p) => p.steps.map((s) => s.key));
+
+/** Map from step key → phase key for quick lookup. */
+const stepToPhase: Record<string, string> = {};
+for (const [phaseKey, phase] of Object.entries(RECRUIT_PHASES)) {
+  for (const step of phase.steps) {
+    stepToPhase[step.key] = phaseKey;
+  }
+}
+
+export interface Recruit {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  state: string;
+  source: string;
+  access_token: string;
+  pipeline_stage: string;
+  notes: string;
+  created_at: number;
+  last_active_at: number;
+}
+
+export interface RecruitWithMeta extends Recruit {
+  steps_completed: number;
+  steps_total: number;
+  days_in_stage: number;
+}
+
+export interface RecruitStep {
+  id: number;
+  recruit_id: string;
+  step_key: string;
+  completed: number;
+  completed_at: number | null;
+}
+
+export interface RecruitChatMessage {
+  id: number;
+  recruit_id: string;
+  role: string;
+  content: string;
+  created_at: number;
+}
+
+export function insertRecruit(recruit: Recruit): void {
+  const insertRecruitStmt = db.prepare(
+    `INSERT INTO recruits (id, name, email, phone, state, source, access_token, pipeline_stage, notes, created_at, last_active_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const insertStepStmt = db.prepare(
+    `INSERT INTO recruit_steps (recruit_id, step_key, completed) VALUES (?, ?, 0)`,
+  );
+
+  const transaction = db.transaction(() => {
+    insertRecruitStmt.run(
+      recruit.id, recruit.name, recruit.email, recruit.phone, recruit.state,
+      recruit.source, recruit.access_token, recruit.pipeline_stage, recruit.notes,
+      recruit.created_at, recruit.last_active_at,
+    );
+    for (const key of ALL_RECRUIT_STEP_KEYS) {
+      insertStepStmt.run(recruit.id, key);
+    }
+  });
+  transaction();
+}
+
+export function getRecruits(stage?: string): RecruitWithMeta[] {
+  const baseQuery = `
+    SELECT r.*,
+      (SELECT COUNT(*) FROM recruit_steps WHERE recruit_id = r.id AND completed = 1) AS steps_completed,
+      (SELECT COUNT(*) FROM recruit_steps WHERE recruit_id = r.id) AS steps_total,
+      CAST(julianday('now') - julianday(r.last_active_at, 'unixepoch') AS INTEGER) AS days_in_stage
+    FROM recruits r
+  `;
+  if (stage) {
+    return db.prepare(`${baseQuery} WHERE r.pipeline_stage = ? ORDER BY r.created_at DESC`)
+      .all(stage) as RecruitWithMeta[];
+  }
+  return db.prepare(`${baseQuery} ORDER BY r.created_at DESC`).all() as RecruitWithMeta[];
+}
+
+export function getStaleRecruits(days: number): RecruitWithMeta[] {
+  const cutoff = Math.floor(Date.now() / 1000) - days * 86400;
+  return db.prepare(`
+    SELECT r.*,
+      (SELECT COUNT(*) FROM recruit_steps WHERE recruit_id = r.id AND completed = 1) AS steps_completed,
+      (SELECT COUNT(*) FROM recruit_steps WHERE recruit_id = r.id) AS steps_total,
+      CAST(julianday('now') - julianday(r.last_active_at, 'unixepoch') AS INTEGER) AS days_in_stage
+    FROM recruits r
+    WHERE r.last_active_at < ? AND r.pipeline_stage != 'appointed'
+    ORDER BY r.last_active_at ASC
+  `).all(cutoff) as RecruitWithMeta[];
+}
+
+export function getRecruit(id: string): Recruit | undefined {
+  return db.prepare('SELECT * FROM recruits WHERE id = ?').get(id) as Recruit | undefined;
+}
+
+export function getRecruitByToken(token: string): Recruit | undefined {
+  return db.prepare('SELECT * FROM recruits WHERE access_token = ?').get(token) as Recruit | undefined;
+}
+
+export function updateRecruitStage(id: string, stage: string): void {
+  const now = Math.floor(Date.now() / 1000);
+  db.prepare('UPDATE recruits SET pipeline_stage = ?, last_active_at = ? WHERE id = ?').run(stage, now, id);
+}
+
+export function updateRecruitLastActive(id: string): void {
+  const now = Math.floor(Date.now() / 1000);
+  db.prepare('UPDATE recruits SET last_active_at = ? WHERE id = ?').run(now, id);
+}
+
+export function updateRecruitNotes(id: string, notes: string): void {
+  db.prepare('UPDATE recruits SET notes = ? WHERE id = ?').run(notes, id);
+}
+
+export function deleteRecruit(id: string): boolean {
+  const transaction = db.transaction(() => {
+    db.prepare('DELETE FROM recruit_chat_messages WHERE recruit_id = ?').run(id);
+    db.prepare('DELETE FROM recruit_steps WHERE recruit_id = ?').run(id);
+    const result = db.prepare('DELETE FROM recruits WHERE id = ?').run(id);
+    return result.changes > 0;
+  });
+  return transaction();
+}
+
+export function getRecruitSteps(recruitId: string): RecruitStep[] {
+  return db.prepare('SELECT * FROM recruit_steps WHERE recruit_id = ? ORDER BY id ASC')
+    .all(recruitId) as RecruitStep[];
+}
+
+/**
+ * Mark a step as completed. If all steps in the step's phase are now done,
+ * returns the next pipeline stage so the caller can auto-advance.
+ */
+export function completeRecruitStep(recruitId: string, stepKey: string): { completed: boolean; newStage?: string } {
+  const now = Math.floor(Date.now() / 1000);
+  const result = db.prepare(
+    'UPDATE recruit_steps SET completed = 1, completed_at = ? WHERE recruit_id = ? AND step_key = ? AND completed = 0',
+  ).run(now, recruitId, stepKey);
+
+  if (result.changes === 0) return { completed: false };
+
+  updateRecruitLastActive(recruitId);
+
+  // Check if all steps in this phase are complete
+  const phaseKey = stepToPhase[stepKey];
+  if (!phaseKey) return { completed: true };
+
+  const phase = RECRUIT_PHASES[phaseKey];
+  const phaseStepKeys = phase.steps.map((s) => s.key);
+  const completedCount = db.prepare(
+    `SELECT COUNT(*) AS cnt FROM recruit_steps WHERE recruit_id = ? AND step_key IN (${phaseStepKeys.map(() => '?').join(',')}) AND completed = 1`,
+  ).get(recruitId, ...phaseStepKeys) as { cnt: number };
+
+  if (completedCount.cnt >= phaseStepKeys.length) {
+    // All steps in this phase are done — find the next stage
+    const stageIndex = RECRUIT_PIPELINE_STAGES.indexOf(phase.pipelineStage);
+    if (stageIndex >= 0 && stageIndex < RECRUIT_PIPELINE_STAGES.length - 1) {
+      const nextStage = RECRUIT_PIPELINE_STAGES[stageIndex + 1];
+      updateRecruitStage(recruitId, nextStage);
+      return { completed: true, newStage: nextStage };
+    }
+  }
+
+  return { completed: true };
+}
+
+export function uncompleteRecruitStep(recruitId: string, stepKey: string): void {
+  db.prepare(
+    'UPDATE recruit_steps SET completed = 0, completed_at = NULL WHERE recruit_id = ? AND step_key = ?',
+  ).run(recruitId, stepKey);
+  updateRecruitLastActive(recruitId);
+}
+
+export function getRecruitStats(): { total: number; inPipeline: number; conversionRate: number; avgDays: number } {
+  const total = (db.prepare('SELECT COUNT(*) AS cnt FROM recruits').get() as { cnt: number }).cnt;
+  const inPipeline = (db.prepare(
+    "SELECT COUNT(*) AS cnt FROM recruits WHERE pipeline_stage NOT IN ('interested', 'appointed')",
+  ).get() as { cnt: number }).cnt;
+  const appointed = (db.prepare(
+    "SELECT COUNT(*) AS cnt FROM recruits WHERE pipeline_stage = 'appointed'",
+  ).get() as { cnt: number }).cnt;
+  const conversionRate = total > 0 ? Math.round((appointed / total) * 100) : 0;
+  const avgDaysResult = db.prepare(
+    "SELECT AVG(julianday('now') - julianday(created_at, 'unixepoch')) AS avg FROM recruits WHERE pipeline_stage != 'appointed'",
+  ).get() as { avg: number | null };
+  const avgDays = Math.round(avgDaysResult.avg ?? 0);
+
+  return { total, inPipeline, conversionRate, avgDays };
+}
+
+export function insertRecruitChatMessage(msg: Omit<RecruitChatMessage, 'id'>): number {
+  const result = db.prepare(
+    'INSERT INTO recruit_chat_messages (recruit_id, role, content, created_at) VALUES (?, ?, ?, ?)',
+  ).run(msg.recruit_id, msg.role, msg.content, msg.created_at);
+  return Number(result.lastInsertRowid);
+}
+
+export function getRecruitChatMessages(recruitId: string, limit = 50): RecruitChatMessage[] {
+  return db.prepare(
+    'SELECT * FROM recruit_chat_messages WHERE recruit_id = ? ORDER BY created_at ASC LIMIT ?',
+  ).all(recruitId, limit) as RecruitChatMessage[];
 }

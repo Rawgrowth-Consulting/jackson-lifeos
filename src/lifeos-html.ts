@@ -525,7 +525,7 @@ function chatBubbleScript(): string {
 
 function loginOverlayHtml(): string {
   return `
-<div id="login-overlay" style="display:flex; position:fixed; inset:0; z-index:9999; background:var(--color-cream); align-items:center; justify-content:center; flex-direction:column;">
+<div id="login-overlay" style="display:none; position:fixed; inset:0; z-index:9999; background:var(--color-cream); align-items:center; justify-content:center; flex-direction:column;">
   <div style="width:100%;max-width:360px;padding:0 24px;text-align:center;">
     <div style="font-family:'Lora',Georgia,serif;font-size:28px;font-weight:500;font-style:italic;color:var(--color-forest-deep);margin-bottom:6px;">Life OS</div>
     <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 32px;">Sign in to continue</p>
@@ -547,10 +547,7 @@ function loginScript(): string {
   fetch('/api/auth-check', { credentials: 'same-origin' })
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if(d.authenticated){
-        overlay.style.display='none';
-        appContent.style.display='block';
-      } else {
+      if(!d.authenticated){
         overlay.style.display='flex';
         appContent.style.display='none';
         var inp = document.getElementById('login-password');
@@ -584,7 +581,7 @@ function loginSubmit(){
 <\/script>`;
 }
 
-function wrapPage(title: string, activePage: string, body: string): string {
+function wrapPage(title: string, activePage: string, body: string, authenticated = false): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -600,8 +597,8 @@ ${sharedStyles()}
 </style>
 </head>
 <body>
-${loginOverlayHtml()}
-<div id="app-content" style="display:none;">
+${authenticated ? '' : loginOverlayHtml()}
+<div id="app-content" style="display:block;">
 ${navHtml(activePage)}
 <main class="los-container">
 ${body}
@@ -609,14 +606,14 @@ ${body}
 ${chatBubbleHtml()}
 ${chatBubbleScript()}
 </div>
-${loginScript()}
+${authenticated ? '' : loginScript()}
 </body>
 </html>`;
 }
 
 // ─── Page 1: Hub ────────────────────────────────────────────────────────────────
 
-export function getLifeOSHubHtml(): string {
+export function getLifeOSHubHtml(authenticated = false): string {
   const body = `
   <div class="animate-lift-in" style="margin-bottom:40px;">
     <h1 id="greeting" class="serif-display" style="font-size:36px;margin:0 0 8px;color:var(--color-forest-deep);">Good morning, Jackson.</h1>
@@ -754,154 +751,274 @@ export function getLifeOSHubHtml(): string {
   })();
   </script>`;
 
-  return wrapPage('Hub', 'hub', body);
+  return wrapPage('Hub', 'hub', body, authenticated);
 }
 
 // ─── Page 2: Selling ────────────────────────────────────────────────────────────
 
-export function getLifeOSSellingHtml(): string {
+export function getLifeOSSellingHtml(authenticated = false): string {
+  const carriers = [
+    ['Mutual of Omaha', 'mutualofomaha.com'],
+    ['Corebridge', 'corebridgefinancial.com'],
+    ['Americo', 'americo.com'],
+    ['Ethos', 'ethoslife.com'],
+    ['Transamerica', 'transamerica.com'],
+    ['American Amicable', 'americanamicable.com'],
+    ['Aetna', 'aetna.com'],
+    ['Chubb', 'chubb.com'],
+    ['National Life', 'nationallife.com'],
+  ];
+
   const body = `
+  <style>
+    .carrier-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 32px; }
+    @media (max-width: 768px) { .carrier-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .carrier-grid { grid-template-columns: 1fr; } }
+
+    .carrier-link { text-decoration: none; color: inherit; display: block; }
+    .carrier-link .card {
+      padding: 20px 22px; margin-bottom: 0; cursor: pointer;
+      display: flex; align-items: center; gap: 14px; transition: all 0.2s ease;
+    }
+    .carrier-link:hover .card { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(5,36,21,0.1); }
+    .carrier-icon {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: rgba(126,163,126,0.12); display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    .upload-zone {
+      border: 2px dashed var(--color-stone-50); border-radius: 16px;
+      padding: 40px 24px; text-align: center; cursor: pointer;
+      transition: all 0.2s ease; background: var(--color-cream-soft);
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--color-sage); background: rgba(126,163,126,0.06);
+    }
+    .upload-zone.drag-over { transform: scale(1.01); }
+
+    .doc-row {
+      display: flex; align-items: center; gap: 14px; padding: 14px 18px;
+      border-bottom: 1px solid var(--color-stone-50); transition: background 0.15s;
+    }
+    .doc-row:last-child { border-bottom: none; }
+    .doc-row:hover { background: var(--color-cream-soft); }
+    .doc-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+    }
+    .doc-icon-pdf { background: rgba(208,119,101,0.15); color: var(--color-clay); }
+    .doc-icon-csv { background: rgba(126,163,126,0.15); color: var(--color-sage); }
+    .doc-icon-default { background: var(--color-stone-50); color: var(--color-sage-muted); }
+    .doc-meta { flex: 1; min-width: 0; }
+    .doc-name { font-size: 13px; font-weight: 600; color: var(--color-forest-deep); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .doc-detail { font-size: 11px; color: var(--color-sage-muted); margin-top: 2px; }
+    .doc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .doc-actions a, .doc-actions button {
+      font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 8px;
+      border: none; cursor: pointer; text-decoration: none;
+    }
+    .doc-btn-view { background: rgba(126,163,126,0.12); color: var(--color-sage); }
+    .doc-btn-view:hover { background: rgba(126,163,126,0.22); }
+    .doc-btn-del { background: rgba(208,119,101,0.1); color: var(--color-clay); }
+    .doc-btn-del:hover { background: rgba(208,119,101,0.2); }
+
+    .upload-feedback {
+      display: none; padding: 12px 18px; border-radius: 12px; margin-top: 14px;
+      font-size: 13px; font-weight: 500;
+    }
+    .upload-feedback.success { display: block; background: rgba(126,163,126,0.12); color: var(--color-sage); }
+    .upload-feedback.error { display: block; background: rgba(208,119,101,0.12); color: var(--color-clay); }
+
+    .empty-state {
+      text-align: center; padding: 40px 20px; color: var(--color-sage-muted);
+    }
+    .empty-state svg { opacity: 0.3; margin-bottom: 12px; }
+  </style>
+
   <div class="animate-lift-in">
     <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Selling</h1>
-    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Commissions, carriers, policies, and projections.</p>
-  </div>
-
-  <!-- KPI Row -->
-  <div class="summary-bar animate-lift-in delay-1">
-    <div class="summary-stat">
-      <div class="summary-stat-val" style="color:var(--color-sage);">$24,300</div>
-      <div class="summary-stat-label">MTD Commissions</div>
-    </div>
-    <div class="summary-stat">
-      <div class="summary-stat-val" style="color:var(--color-clay);">$2,450</div>
-      <div class="summary-stat-label">MTD Chargebacks</div>
-    </div>
-    <div class="summary-stat">
-      <div class="summary-stat-val">73%</div>
-      <div class="summary-stat-label">90d Persistency</div>
-    </div>
-    <div class="summary-stat">
-      <div class="summary-stat-val" style="color:var(--color-forest);">$81,200</div>
-      <div class="summary-stat-label">3mo Forecast</div>
-    </div>
-  </div>
-
-  <!-- Chargeback Liability -->
-  <div class="card animate-lift-in delay-2" style="margin-bottom:24px;background:var(--color-forest-deep);border-color:var(--color-forest-deep);">
-    <div class="summary-stat-label" style="margin-bottom:8px;color:rgba(245,239,233,0.6);">Chargeback Liability</div>
-    <div style="font-size:42px;font-weight:500;color:var(--color-cream);letter-spacing:-0.03em;font-family:'Lora',Georgia,serif;font-variant-numeric:tabular-nums;">$46,780</div>
-    <p style="font-size:12px;color:rgba(245,239,233,0.5);margin:8px 0 0;">Outstanding liability from policies in chargeback window</p>
-  </div>
-
-  <!-- Per Carrier Breakdown -->
-  <div class="section-title animate-lift-in delay-3">Per Carrier Breakdown</div>
-  <div class="card animate-lift-in delay-3" style="padding:0;overflow:hidden;">
-    <table class="los-table">
-      <thead>
-        <tr><th>Carrier</th><th>MTD Amount</th><th>Persistency</th></tr>
-      </thead>
-      <tbody>
-        <tr><td style="font-weight:600;">Mutual of Omaha</td><td style="color:var(--color-sage);font-weight:500;">$11,820</td><td>76%</td></tr>
-        <tr><td style="font-weight:600;">Aetna</td><td style="color:var(--color-sage);font-weight:500;">$7,640</td><td>71%</td></tr>
-        <tr><td style="font-weight:600;">Americo</td><td style="color:var(--color-sage);font-weight:500;">$4,840</td><td>68%</td></tr>
-      </tbody>
-    </table>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 28px;">Log into your carriers and upload statements to track everything in one place.</p>
   </div>
 
   <!-- Carrier Links -->
-  <div class="section-title animate-lift-in delay-4" style="margin-top:28px;">Carrier Links</div>
-  <div class="carrier-grid animate-lift-in delay-4" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;">
-    ${[
-      ['Mutual of Omaha', 'mutualofomaha.com'],
-      ['Corebridge', 'corebridgefinancial.com'],
-      ['Americo', 'americo.com'],
-      ['Ethos', 'ethoslife.com'],
-      ['Transamerica', 'transamerica.com'],
-      ['American Amicable', 'americanamicable.com'],
-      ['Aetna', 'aetna.com'],
-      ['Chubb', 'chubb.com'],
-      ['National Life', 'nationallife.com'],
-    ].map(([name, url]) => `
-    <a href="https://${url}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">
-      <div class="card card-hover" style="padding:18px 20px;margin-bottom:0;cursor:pointer;">
-        <div style="font-size:14px;font-weight:600;color:var(--color-forest-deep);">${name}</div>
-        <div style="font-size:12px;color:var(--color-forest);font-weight:600;margin-top:6px;">Login &rarr;</div>
+  <div class="section-title animate-lift-in delay-1">Carrier Logins</div>
+  <div class="carrier-grid animate-lift-in delay-1">
+    ${carriers.map(([name, url]) => `
+    <a href="https://${url}" target="_blank" rel="noopener" class="carrier-link">
+      <div class="card card-hover" style="padding:20px 22px;margin-bottom:0;cursor:pointer;display:flex;align-items:center;gap:14px;">
+        <div class="carrier-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:600;color:var(--color-forest-deep);">${name}</div>
+          <div style="font-size:11px;color:var(--color-sage-muted);margin-top:2px;">${url}</div>
+        </div>
       </div>
     </a>`).join('')}
   </div>
-  <style>
-    @media (max-width: 768px) {
-      .carrier-grid { grid-template-columns: repeat(2, 1fr) !important; }
-    }
-    @media (max-width: 480px) {
-      .carrier-grid { grid-template-columns: 1fr !important; }
-    }
-  </style>
 
-  <!-- 9-Month Projection -->
-  <div class="section-title animate-lift-in delay-5" style="margin-top:28px;">9-Month Projection</div>
-  <div class="card animate-lift-in delay-5">
-    ${(() => {
-      const months = [
-        ['May', 27500], ['Jun', 29200], ['Jul', 31000],
-        ['Aug', 28800], ['Sep', 30500], ['Oct', 33000],
-        ['Nov', 35200], ['Dec', 32000], ['Jan', 34500]
-      ];
-      const max = 35200;
-      return months.map(([m, v]) => `
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-        <div style="width:36px;font-size:12px;color:var(--color-sage-muted);font-weight:600;text-align:right;">${m}</div>
-        <div style="flex:1;">
-          <div class="progress-track" style="height:24px;border-radius:8px;">
-            <div class="progress-fill" style="width:${Math.round(((v as number) / max) * 100)}%;background:var(--color-sage);border-radius:8px;display:flex;align-items:center;padding-left:10px;">
-              <span style="font-size:11px;font-weight:600;color:var(--color-paper);">$${(v as number).toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      </div>`).join('');
-    })()}
-  </div>
-
-  <!-- Number Upload -->
-  <div class="section-title" style="margin-top:28px;">Number Upload</div>
-  <div class="card">
-    <form onsubmit="event.preventDefault();alert('Numbers saved (mock).');" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-      <div style="grid-column:span 2;">
+  <!-- Document Upload -->
+  <div class="section-title animate-lift-in delay-2" style="margin-top:8px;">Upload Statements</div>
+  <div class="card animate-lift-in delay-2">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
+      <div>
         <label class="label" style="display:block;margin-bottom:6px;">Carrier</label>
-        <select class="los-select">
-          <option>Mutual of Omaha</option><option>Aetna</option><option>Americo</option>
-          <option>Corebridge</option><option>Ethos</option><option>Transamerica</option>
-          <option>American Amicable</option><option>Chubb</option><option>National Life</option>
+        <select id="uploadCarrier" class="los-select">
+          ${carriers.map(([name]) => `<option value="${name}">${name}</option>`).join('')}
         </select>
       </div>
       <div>
-        <label class="label" style="display:block;margin-bottom:6px;">Month</label>
-        <input type="month" class="los-input">
+        <label class="label" style="display:block;margin-bottom:6px;">Notes <span style="font-weight:400;color:var(--color-sage-muted);">(optional)</span></label>
+        <input id="uploadNotes" type="text" class="los-input" placeholder="e.g. April commissions">
       </div>
-      <div>
-        <label class="label" style="display:block;margin-bottom:6px;">Gross Commissions</label>
-        <input type="number" class="los-input" placeholder="$0.00">
-      </div>
-      <div>
-        <label class="label" style="display:block;margin-bottom:6px;">Chargebacks</label>
-        <input type="number" class="los-input" placeholder="$0.00">
-      </div>
-      <div>
-        <label class="label" style="display:block;margin-bottom:6px;">Policies Written</label>
-        <input type="number" class="los-input" placeholder="0">
-      </div>
-      <div style="grid-column:span 2;display:flex;justify-content:flex-end;margin-top:6px;">
-        <button type="submit" class="los-btn">Save Numbers</button>
-      </div>
-    </form>
-  </div>`;
+    </div>
+    <div id="uploadZone" class="upload-zone" onclick="document.getElementById('fileInput').click()">
+      <input type="file" id="fileInput" multiple style="display:none;" accept=".pdf,.csv,.xls,.xlsx,.doc,.docx,.png,.jpg,.jpeg">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-sage-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div style="font-size:14px;font-weight:600;color:var(--color-forest-deep);">Drop files here or click to browse</div>
+      <div style="font-size:12px;color:var(--color-sage-muted);margin-top:4px;">PDF, CSV, Excel, images accepted</div>
+    </div>
+    <div id="uploadFeedback" class="upload-feedback"></div>
+  </div>
 
-  return wrapPage('Selling', 'selling', body);
+  <!-- Uploaded Documents -->
+  <div class="section-title animate-lift-in delay-3" style="margin-top:28px;">Uploaded Documents</div>
+  <div class="card animate-lift-in delay-3" id="docsCard" style="padding:0;overflow:hidden;">
+    <div id="docsLoading" style="text-align:center;padding:24px;color:var(--color-sage-muted);font-size:13px;">Loading...</div>
+  </div>
+
+  <script>
+  (function() {
+    var zone = document.getElementById('uploadZone');
+    var fileInput = document.getElementById('fileInput');
+    var feedback = document.getElementById('uploadFeedback');
+    var docsCard = document.getElementById('docsCard');
+
+    function fmtSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    function fmtDate(ts) {
+      var d = new Date(ts * 1000);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function fileIconClass(name) {
+      var ext = name.split('.').pop().toLowerCase();
+      if (ext === 'pdf') return 'doc-icon-pdf';
+      if (['csv', 'xls', 'xlsx'].indexOf(ext) !== -1) return 'doc-icon-csv';
+      return 'doc-icon-default';
+    }
+
+    function fileExt(name) {
+      return (name.split('.').pop() || '?').toUpperCase().slice(0, 4);
+    }
+
+    ['dragenter', 'dragover'].forEach(function(e) {
+      zone.addEventListener(e, function(ev) { ev.preventDefault(); zone.classList.add('drag-over'); });
+    });
+    ['dragleave', 'drop'].forEach(function(e) {
+      zone.addEventListener(e, function(ev) { ev.preventDefault(); zone.classList.remove('drag-over'); });
+    });
+    zone.addEventListener('drop', function(ev) {
+      var files = ev.dataTransfer.files;
+      if (files.length) uploadFiles(files);
+    });
+
+    fileInput.addEventListener('change', function() {
+      if (fileInput.files.length) uploadFiles(fileInput.files);
+      fileInput.value = '';
+    });
+
+    function uploadFiles(files) {
+      var carrier = document.getElementById('uploadCarrier').value;
+      var notes = document.getElementById('uploadNotes').value.trim();
+      var uploaded = 0, errors = 0, total = files.length;
+
+      Array.from(files).forEach(function(file) {
+        var form = new FormData();
+        form.append('file', file);
+        form.append('carrier', carrier);
+        if (notes) form.append('notes', notes);
+
+        fetch('/api/selling/upload', { method: 'POST', body: form, credentials: 'include' })
+          .then(function(res) {
+            if (res.ok) uploaded++; else errors++;
+          })
+          .catch(function() { errors++; })
+          .finally(function() {
+            if (uploaded + errors === total) {
+              if (uploaded > 0) {
+                feedback.className = 'upload-feedback success';
+                feedback.textContent = uploaded + ' file' + (uploaded > 1 ? 's' : '') + ' uploaded successfully.';
+                document.getElementById('uploadNotes').value = '';
+                loadDocs();
+              }
+              if (errors > 0) {
+                feedback.className = 'upload-feedback error';
+                feedback.textContent = (uploaded > 0 ? uploaded + ' uploaded, ' : '') + errors + ' failed.';
+              }
+              setTimeout(function() { feedback.className = 'upload-feedback'; }, 4000);
+            }
+          });
+      });
+    }
+
+    function deletDoc(id) {
+      if (!confirm('Delete this document?')) return;
+      fetch('/api/selling/documents/' + id, { method: 'DELETE', credentials: 'include' })
+        .then(function() { loadDocs(); });
+    }
+
+    function loadDocs() {
+      fetch('/api/selling/documents', { credentials: 'include' })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var docs = data.documents || [];
+          if (docs.length === 0) {
+            docsCard.innerHTML = '<div class="empty-state">' +
+              '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+              '<div style="font-size:14px;font-weight:500;">No documents yet</div>' +
+              '<div style="font-size:12px;margin-top:4px;">Upload carrier statements above to get started.</div>' +
+              '</div>';
+            return;
+          }
+          docsCard.innerHTML = docs.map(function(doc) {
+            return '<div class="doc-row">' +
+              '<div class="doc-icon ' + fileIconClass(doc.original_name) + '">' + fileExt(doc.original_name) + '</div>' +
+              '<div class="doc-meta">' +
+                '<div class="doc-name">' + doc.original_name + '</div>' +
+                '<div class="doc-detail">' + doc.carrier + ' &middot; ' + fmtSize(doc.file_size) + ' &middot; ' + fmtDate(doc.created_at) +
+                  (doc.notes ? ' &middot; ' + doc.notes : '') +
+                '</div>' +
+              '</div>' +
+              '<div class="doc-actions">' +
+                '<a href="/api/selling/documents/' + doc.id + '/download" target="_blank" class="doc-btn-view">View</a>' +
+                '<button onclick="window.__deletDoc(\\'' + doc.id + '\\')" class="doc-btn-del">Delete</button>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+        })
+        .catch(function() {
+          docsCard.innerHTML = '<div class="empty-state"><div style="font-size:13px;">Failed to load documents.</div></div>';
+        });
+    }
+
+    window.__deletDoc = deletDoc;
+    loadDocs();
+  })();
+  <\/script>`;
+
+  return wrapPage('Selling', 'selling', body, authenticated);
 }
 
 // ─── Page 3: Recruiting ─────────────────────────────────────────────────────────
 
-export function getLifeOSRecruitingHtml(): string {
+export function getLifeOSRecruitingHtml(authenticated = false): string {
   const body = `
   <style>
     .kanban { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 24px; min-height: 300px; }
@@ -1118,12 +1235,12 @@ export function getLifeOSRecruitingHtml(): string {
     </div>
   </div>`;
 
-  return wrapPage('Recruiting', 'recruiting', body);
+  return wrapPage('Recruiting', 'recruiting', body, authenticated);
 }
 
 // ─── Page 4: Brand ──────────────────────────────────────────────────────────────
 
-export function getLifeOSBrandHtml(): string {
+export function getLifeOSBrandHtml(authenticated = false): string {
   const body = `
   <div class="animate-lift-in">
     <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Brand</h1>
@@ -1264,12 +1381,12 @@ export function getLifeOSBrandHtml(): string {
     <p style="font-size:12px;color:var(--color-sage-muted);margin:0;">Link your Instagram, YouTube, and LinkedIn for real-time analytics.</p>
   </div>`;
 
-  return wrapPage('Brand', 'brand', body);
+  return wrapPage('Brand', 'brand', body, authenticated);
 }
 
 // ─── Page 5: Personal ───────────────────────────────────────────────────────────
 
-export function getLifeOSPersonalHtml(): string {
+export function getLifeOSPersonalHtml(authenticated = false): string {
   const body = `
   <div class="animate-lift-in">
     <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Personal</h1>
@@ -1381,12 +1498,12 @@ export function getLifeOSPersonalHtml(): string {
     <p style="font-size:12px;color:var(--color-sage-muted);margin:0;">Link your Monarch Money account for real-time transaction and budget data.</p>
   </div>`;
 
-  return wrapPage('Personal', 'personal', body);
+  return wrapPage('Personal', 'personal', body, authenticated);
 }
 
 // ─── Page 6: Agents ─────────────────────────────────────────────────────────────
 
-export function getLifeOSAgentsHtml(): string {
+export function getLifeOSAgentsHtml(authenticated = false): string {
   const body = `
   <div class="animate-lift-in">
     <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Agents</h1>
@@ -1539,5 +1656,5 @@ export function getLifeOSAgentsHtml(): string {
   }
   </script>`;
 
-  return wrapPage('Agents', 'agents', body);
+  return wrapPage('Agents', 'agents', body, authenticated);
 }

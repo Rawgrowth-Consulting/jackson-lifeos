@@ -5,7 +5,7 @@ import { serve } from '@hono/node-server';
 
 import fs from 'fs';
 import path from 'path';
-import { AGENT_ID, ALLOWED_CHAT_ID, DASHBOARD_PORT, DASHBOARD_TOKEN, PROJECT_ROOT, STORE_DIR, WHATSAPP_ENABLED, SLACK_USER_TOKEN, CONTEXT_LIMIT, agentDefaultModel } from './config.js';
+import { AGENT_ID, ALLOWED_CHAT_ID, DASHBOARD_PORT, DASHBOARD_TOKEN, PROJECT_ROOT, STORE_DIR, WHATSAPP_ENABLED, SLACK_USER_TOKEN, CONTEXT_LIMIT, agentDefaultModel, agentSystemPrompt, RAWCLAW_CONFIG } from './config.js';
 import crypto from 'crypto';
 import {
   getAllScheduledTasks,
@@ -45,6 +45,26 @@ import {
   getDbTableRows,
   runReadOnlyQuery,
   decryptField,
+  insertSellingDocument,
+  getSellingDocuments,
+  getSellingDocument,
+  deleteSellingDocument,
+  insertRecruit,
+  getRecruits,
+  getStaleRecruits,
+  getRecruit,
+  getRecruitByToken,
+  updateRecruitStage,
+  updateRecruitNotes,
+  deleteRecruit,
+  getRecruitSteps,
+  completeRecruitStep,
+  uncompleteRecruitStep,
+  getRecruitStats,
+  insertRecruitChatMessage,
+  getRecruitChatMessages,
+  RECRUIT_PHASES,
+  RECRUIT_PIPELINE_STAGES,
 } from './db.js';
 import { generateContent, parseJsonResponse } from './gemini.js';
 import { getSecurityStatus } from './security.js';
@@ -59,7 +79,9 @@ import {
   deleteAgent,
   suggestBotNames,
   isAgentRunning,
+  getDepartmentSkillStatus as getDepartmentSkillStatusApi,
 } from './agent-create.js';
+import { listDepartments as listDepartmentsApi } from './department-config.js';
 import { processMessageFromDashboard } from './bot.js';
 import { getDashboardHtml } from './dashboard-html.js';
 import {
@@ -69,6 +91,8 @@ import {
   getLifeOSBrandHtml,
   getLifeOSPersonalHtml,
   getLifeOSAgentsHtml,
+  getRecruitSignupHtml,
+  getRecruitDashboardHtml,
 } from './lifeos-html.js';
 import { logger } from './logger.js';
 import { getTelegramConnected, getBotInfo, chatEvents, getIsProcessing, abortActiveQuery, ChatEvent } from './state.js';
@@ -103,6 +127,12 @@ Reply with JSON: {"agent": "agent_id"}`;
     logger.error({ err }, 'Auto-assign classification failed');
     return null;
   }
+}
+
+// ── Recruit stage change notification callback ───────────────────────────────
+let recruitStageCallback: ((name: string, stage: string, stepsComplete: number, stepsTotal: number) => void) | null = null;
+export function setRecruitStageCallback(cb: typeof recruitStageCallback): void {
+  recruitStageCallback = cb;
 }
 
 export function startDashboard(botApi?: Api<RawApi>): void {
@@ -194,8 +224,12 @@ export function startDashboard(botApi?: Api<RawApi>): void {
       return next();
     }
     // Serve dashboard/Life OS pages (includes login screen) — always accessible
-    const publicPages = ['/', '/selling', '/recruiting', '/brand', '/personal', '/agents', '/ai'];
+    const publicPages = ['/', '/selling', '/recruiting', '/brand', '/personal', '/agents', '/ai', '/join'];
     if (publicPages.includes(path) && c.req.method === 'GET') {
+      return next();
+    }
+    // Recruit-facing routes (token-authenticated, not session-authenticated)
+    if (path.startsWith('/r/') || path.startsWith('/api/recruit/')) {
       return next();
     }
     // Also support legacy ?token= in URL for backward compat (but token is NOT exposed in HTML anymore)
@@ -211,17 +245,365 @@ export function startDashboard(botApi?: Api<RawApi>): void {
   });
 
   // Life OS hub (root page)
-  app.get('/', (c) => c.html(getLifeOSHubHtml()));
-  app.get('/selling', (c) => c.html(getLifeOSSellingHtml()));
-  app.get('/recruiting', (c) => c.html(getLifeOSRecruitingHtml()));
-  app.get('/brand', (c) => c.html(getLifeOSBrandHtml()));
-  app.get('/personal', (c) => c.html(getLifeOSPersonalHtml()));
-  app.get('/agents', (c) => c.html(getLifeOSAgentsHtml()));
+  app.get('/', (c) => c.html(getLifeOSHubHtml(isAuthenticated(c))));
+  app.get('/selling', (c) => c.html(getLifeOSSellingHtml(isAuthenticated(c))));
+  app.get('/recruiting', (c) => c.html(getLifeOSRecruitingHtml(isAuthenticated(c))));
+  app.get('/brand', (c) => c.html(getLifeOSBrandHtml(isAuthenticated(c))));
+  app.get('/personal', (c) => c.html(getLifeOSPersonalHtml(isAuthenticated(c))));
+  app.get('/agents', (c) => c.html(getLifeOSAgentsHtml(isAuthenticated(c))));
 
   // Original rawclaw AI dashboard (moved to /ai)
   app.get('/ai', (c) => {
     const chatId = c.req.query('chatId') || '';
     return c.html(getDashboardHtml('', chatId));
+  });
+
+  // ── Selling: Document Upload & Management ─────────────────────────────
+
+  const SELLING_UPLOADS_DIR = path.join(STORE_DIR, 'selling-uploads');
+  fs.mkdirSync(SELLING_UPLOADS_DIR, { recursive: true });
+
+  // Upload a document
+  app.post('/api/selling/upload', async (c) => {
+    const formData = await c.req.formData();
+    const file = formData.get('file') as File | null;
+    const carrier = (formData.get('carrier') as string || '').trim();
+    const notes = (formData.get('notes') as string || '').trim();
+
+    if (!file || !file.name) return c.json({ error: 'No file provided' }, 400);
+    if (!carrier) return c.json({ error: 'Carrier is required' }, 400);
+
+    const id = crypto.randomBytes(8).toString('hex');
+    const ext = path.extname(file.name) || '';
+    const filename = `${id}${ext}`;
+    const filePath = path.join(SELLING_UPLOADS_DIR, filename);
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    fs.writeFileSync(filePath, buffer);
+
+    insertSellingDocument({
+      id,
+      carrier,
+      filename,
+      original_name: file.name,
+      file_size: buffer.length,
+      mime_type: file.type || 'application/octet-stream',
+      notes,
+      created_at: Math.floor(Date.now() / 1000),
+    });
+
+    return c.json({ ok: true, id });
+  });
+
+  // List documents (optionally filter by carrier)
+  app.get('/api/selling/documents', (c) => {
+    const carrier = c.req.query('carrier') || undefined;
+    const docs = getSellingDocuments(carrier);
+    return c.json({ documents: docs });
+  });
+
+  // Download a document
+  app.get('/api/selling/documents/:id/download', (c) => {
+    const doc = getSellingDocument(c.req.param('id'));
+    if (!doc) return c.json({ error: 'Not found' }, 404);
+
+    const filePath = path.join(SELLING_UPLOADS_DIR, doc.filename);
+    if (!fs.existsSync(filePath)) return c.json({ error: 'File missing' }, 404);
+
+    const data = fs.readFileSync(filePath);
+    c.header('Content-Type', doc.mime_type);
+    c.header('Content-Disposition', `inline; filename="${doc.original_name}"`);
+    return c.body(data);
+  });
+
+  // Delete a document
+  app.delete('/api/selling/documents/:id', (c) => {
+    const doc = getSellingDocument(c.req.param('id'));
+    if (!doc) return c.json({ error: 'Not found' }, 404);
+
+    // Remove file from disk
+    const filePath = path.join(SELLING_UPLOADS_DIR, doc.filename);
+    try { fs.unlinkSync(filePath); } catch { /* file may already be gone */ }
+
+    deleteSellingDocument(doc.id);
+    return c.json({ ok: true });
+  });
+
+  // ── Recruiting: Public pages & token-authenticated API ───────────────
+
+  // Public sign-up page
+  app.get('/join', (c) => c.html(getRecruitSignupHtml()));
+
+  // Recruit dashboard (token-based access)
+  app.get('/r/:token', (c) => {
+    const recruit = getRecruitByToken(c.req.param('token'));
+    if (!recruit) return c.html('<h1>Not found</h1><p>This link is invalid or has expired.</p>', 404);
+    const steps = getRecruitSteps(recruit.id);
+    return c.html(getRecruitDashboardHtml(recruit, steps));
+  });
+
+  // Public sign-up API
+  app.post('/api/recruit/signup', async (c) => {
+    const body = await c.req.json<{ name?: string; email?: string; phone?: string; state?: string }>();
+    const name = body?.name?.trim();
+    const email = body?.email?.trim();
+    if (!name) return c.json({ error: 'Name is required' }, 400);
+    if (!email) return c.json({ error: 'Email is required' }, 400);
+
+    const id = crypto.randomBytes(8).toString('hex');
+    const accessToken = crypto.randomBytes(16).toString('hex');
+    const now = Math.floor(Date.now() / 1000);
+
+    insertRecruit({
+      id,
+      name,
+      email,
+      phone: body?.phone?.trim() || '',
+      state: body?.state?.trim() || '',
+      source: 'form',
+      access_token: accessToken,
+      pipeline_stage: 'interested',
+      notes: '',
+      created_at: now,
+      last_active_at: now,
+    });
+
+    return c.json({ ok: true, token: accessToken });
+  });
+
+  // Get recruit steps (token-based)
+  app.get('/api/recruit/:token/steps', (c) => {
+    const recruit = getRecruitByToken(c.req.param('token'));
+    if (!recruit) return c.json({ error: 'Not found' }, 404);
+    const steps = getRecruitSteps(recruit.id);
+    return c.json({ steps, pipeline_stage: recruit.pipeline_stage });
+  });
+
+  // Toggle step completion (token-based)
+  app.post('/api/recruit/:token/step', async (c) => {
+    const recruit = getRecruitByToken(c.req.param('token'));
+    if (!recruit) return c.json({ error: 'Not found' }, 404);
+
+    const body = await c.req.json<{ stepKey?: string; completed?: boolean }>();
+    const stepKey = body?.stepKey;
+    if (!stepKey) return c.json({ error: 'stepKey is required' }, 400);
+
+    if (body?.completed === false) {
+      uncompleteRecruitStep(recruit.id, stepKey);
+      return c.json({ ok: true });
+    }
+
+    const result = completeRecruitStep(recruit.id, stepKey);
+    if (!result.completed) return c.json({ ok: true, alreadyDone: true });
+
+    // Fire notification if stage advanced
+    if (result.newStage && recruitStageCallback) {
+      const steps = getRecruitSteps(recruit.id);
+      const done = steps.filter((s) => s.completed).length;
+      const stageLabel = RECRUIT_PIPELINE_STAGES.includes(result.newStage as any)
+        ? Object.values(RECRUIT_PHASES).find((p) => p.pipelineStage === result.newStage)?.label || result.newStage
+        : result.newStage;
+      recruitStageCallback(recruit.name, stageLabel, done, steps.length);
+    }
+
+    return c.json({ ok: true, newStage: result.newStage });
+  });
+
+  // AI chat - send message (token-based)
+  app.post('/api/recruit/:token/chat', async (c) => {
+    const recruit = getRecruitByToken(c.req.param('token'));
+    if (!recruit) return c.json({ error: 'Not found' }, 404);
+
+    const body = await c.req.json<{ message?: string }>();
+    const message = body?.message?.trim();
+    if (!message) return c.json({ error: 'message is required' }, 400);
+
+    const now = Math.floor(Date.now() / 1000);
+    insertRecruitChatMessage({ recruit_id: recruit.id, role: 'user', content: message, created_at: now });
+
+    // Build context
+    const history = getRecruitChatMessages(recruit.id, 20);
+    const steps = getRecruitSteps(recruit.id);
+    const completedSteps = steps.filter((s) => s.completed).map((s) => s.step_key);
+    const allStepLabels = Object.values(RECRUIT_PHASES).flatMap((p) =>
+      p.steps.map((s) => `${s.completed ?? completedSteps.includes(s.key) ? '[x]' : '[ ]'} ${s.label}`),
+    );
+
+    const systemPrompt = `You are a helpful, encouraging assistant that helps people get their life insurance license. You're part of Family First Life's recruiting team, working with Jackson.
+
+The recruit's name is ${recruit.name}. They are in ${recruit.state || 'an unspecified state'}.
+Their current pipeline stage is: ${recruit.pipeline_stage}
+Their progress: ${completedSteps.length}/${steps.length} steps complete.
+
+Here are all the steps and their status:
+${Object.values(RECRUIT_PHASES).map((phase) =>
+  `## ${phase.label}\n${phase.steps.map((s) => `- ${completedSteps.includes(s.key) ? '[x]' : '[ ]'} ${s.label}`).join('\n')}`,
+).join('\n\n')}
+
+KEY PROCESS DETAILS:
+
+STEP 1 - Schedule State Exam:
+- Go to Prepare2Pass to find state-specific exam instructions
+- Look for the LIFE exam specifically
+- Register, pay, and schedule exam date
+- Forward exam confirmation email to admin
+- Course registration instructions are NOT sent until exam is scheduled
+- If it asks for schooling, enter "XCEL" with a completion date 30 days from exam date
+- Additional state requirements: https://www.prepare2pass.com/requirements
+
+STEP 2 - Pre-Licensing Course (XCEL Solutions):
+- The course is FREE (discount code provided by admin)
+- Go to the FFL XCEL partner enrollment page
+- Select: State → Education (Get License) → Line of Authority: LIFE
+- Choose either Life Only or Life, Accident & Health combo
+- Create XCEL account, complete checkout
+- Reply "ENROLLED" to admin when done
+
+STEP 3 - Pass Exam & Gather Contracting Requirements:
+- After passing exam, get NPN from NIPR website (nipr.com)
+- Purchase E&O Insurance via NAPA (napa-benefits.org)
+  - Select "newly licensed" if licensed less than 2 years
+  - Select Option B for coverage
+  - Minimum coverage: $1M/$1M
+  - Start date: 1st of current month (not next month!)
+  - E&O can only be obtained AFTER license is issued
+- Get voided check OR bank letter (signed by bank rep with routing/account numbers)
+- Create professional email (firstname.lastname@gmail.com format)
+- Send all docs to admin
+
+STEP 4 - SureLC Account:
+- Create account using link from admin
+- Watch walkthrough videos
+- If previously used SuranceBay, use a NEW email
+- Complete profile (no red/yellow dots on tabs)
+- Go to CE & Training → Anti-Money Laundering → Complete AML training
+- Save AML certificate for later upload
+- FAQ: Request Type = Contract (or Transfer if moving from another IMO), FINRA = NO, LTC Rider = NO
+
+STEP 5 - NLC Onboarding:
+- Log in to Gateway using HCMS login
+- Complete NLC onboarding (info auto-fills future contracting)
+- Upload AML certificate to Trainings tab
+- Submit contracts for: Aetna, Americo, American Amicable, Corebridge, Ethos, Mutual of Omaha, TransAmerica
+- IMPORTANT: If previously contracted with Americo, STOP and contact admin (manual process required)
+- Add AML training to each carrier contract request
+- Enter verification codes and confirm submissions
+- Contract approvals typically take 7-10 business days
+- Complete New Agent Bootcamp videos
+
+USEFUL LINKS:
+- XCEL Solutions: https://www.xcelsolutions.com/
+- NIPR (NPN lookup): https://nipr.com/licensing-center/look-up-a-national-producer-number
+- Check application status: https://nipr.com/licensing-center/apply-for-a-license/check-your-insurance-application-status
+- Print license: https://nipr.com/help/print-your-insurance-license
+- NAPA E&O: https://www.napa-benefits.org/insurance/errors-and-omissions-eando-insurance
+- State requirements: https://www.prepare2pass.com/requirements
+
+Be specific to their state when possible. Be encouraging and supportive. Keep responses concise but helpful.
+Do NOT use markdown formatting - respond in plain text. Use short paragraphs.`;
+
+    const conversationHistory = history.map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
+    const fullPrompt = `${systemPrompt}\n\nConversation so far:\n${conversationHistory}\n\nUser: ${message}\n\nAssistant:`;
+
+    try {
+      const reply = await generateContent(fullPrompt, 'gemini-2.5-flash-preview-05-20', { temperature: 0.7, responseMimeType: 'text/plain' });
+      const cleanReply = reply.replace(/^```[\s\S]*?```$/gm, '').replace(/^"|"$/g, '').trim() || "I'm sorry, I couldn't generate a response. Please try again.";
+      insertRecruitChatMessage({ recruit_id: recruit.id, role: 'assistant', content: cleanReply, created_at: Math.floor(Date.now() / 1000) });
+      return c.json({ reply: cleanReply });
+    } catch (err) {
+      logger.error({ err }, 'Recruit chat error');
+      return c.json({ error: 'Failed to generate response' }, 500);
+    }
+  });
+
+  // Chat history (token-based)
+  app.get('/api/recruit/:token/chat/history', (c) => {
+    const recruit = getRecruitByToken(c.req.param('token'));
+    if (!recruit) return c.json({ error: 'Not found' }, 404);
+    const messages = getRecruitChatMessages(recruit.id);
+    return c.json({ messages });
+  });
+
+  // ── Recruiting: Admin API (session-authenticated) ──────────────────
+
+  // List all recruits
+  app.get('/api/recruiting/recruits', (c) => {
+    const stage = c.req.query('stage') || undefined;
+    const staleDays = c.req.query('stale');
+    if (staleDays) {
+      const recruits = getStaleRecruits(parseInt(staleDays, 10) || 7);
+      return c.json({ recruits });
+    }
+    const recruits = getRecruits(stage);
+    return c.json({ recruits });
+  });
+
+  // Get single recruit detail
+  app.get('/api/recruiting/recruits/:id', (c) => {
+    const recruit = getRecruit(c.req.param('id'));
+    if (!recruit) return c.json({ error: 'Not found' }, 404);
+    const steps = getRecruitSteps(recruit.id);
+    return c.json({ recruit, steps });
+  });
+
+  // Add recruit manually (Jackson's admin)
+  app.post('/api/recruiting/recruits', async (c) => {
+    const body = await c.req.json<{ name?: string; email?: string; phone?: string; state?: string; source?: string; notes?: string }>();
+    const name = body?.name?.trim();
+    if (!name) return c.json({ error: 'Name is required' }, 400);
+
+    const id = crypto.randomBytes(8).toString('hex');
+    const accessToken = crypto.randomBytes(16).toString('hex');
+    const now = Math.floor(Date.now() / 1000);
+
+    insertRecruit({
+      id,
+      name,
+      email: body?.email?.trim() || '',
+      phone: body?.phone?.trim() || '',
+      state: body?.state?.trim() || '',
+      source: body?.source?.trim() || 'manual',
+      access_token: accessToken,
+      pipeline_stage: 'interested',
+      notes: body?.notes?.trim() || '',
+      created_at: now,
+      last_active_at: now,
+    });
+
+    return c.json({ ok: true, id, token: accessToken });
+  });
+
+  // Update recruit (notes, stage)
+  app.patch('/api/recruiting/recruits/:id', async (c) => {
+    const recruit = getRecruit(c.req.param('id'));
+    if (!recruit) return c.json({ error: 'Not found' }, 404);
+
+    const body = await c.req.json<{ notes?: string; pipeline_stage?: string }>();
+    if (body?.notes !== undefined) updateRecruitNotes(recruit.id, body.notes);
+    if (body?.pipeline_stage && RECRUIT_PIPELINE_STAGES.includes(body.pipeline_stage as any)) {
+      updateRecruitStage(recruit.id, body.pipeline_stage);
+      if (recruitStageCallback) {
+        const steps = getRecruitSteps(recruit.id);
+        const done = steps.filter((s) => s.completed).length;
+        const stageLabel = Object.values(RECRUIT_PHASES).find((p) => p.pipelineStage === body.pipeline_stage)?.label || body.pipeline_stage;
+        recruitStageCallback(recruit.name, stageLabel, done, steps.length);
+      }
+    }
+
+    return c.json({ ok: true });
+  });
+
+  // Delete recruit
+  app.delete('/api/recruiting/recruits/:id', (c) => {
+    const ok = deleteRecruit(c.req.param('id'));
+    if (!ok) return c.json({ error: 'Not found' }, 404);
+    return c.json({ ok: true });
+  });
+
+  // Recruiting stats
+  app.get('/api/recruiting/stats', (c) => {
+    const stats = getRecruitStats();
+    return c.json(stats);
   });
 
   // Scheduled tasks
@@ -472,7 +854,9 @@ export function startDashboard(botApi?: Api<RawApi>): void {
       }
     });
 
-    // Include main bot too
+    // Include main bot — resolve its identity from the running AGENT_ID config
+    // so that if a named agent (e.g. gurt) IS the main process, it shows
+    // under its real name rather than a generic "Main" label.
     const mainPidFile = path.join(STORE_DIR, 'rawclaw.pid');
     let mainRunning = false;
     if (fs.existsSync(mainPidFile)) {
@@ -483,9 +867,37 @@ export function startDashboard(botApi?: Api<RawApi>): void {
       } catch { /* not running */ }
     }
     const mainStats = getAgentTokenStats('main');
+
+    // Try to resolve the main agent's display name from its config
+    let mainName = 'Main';
+    let mainDescription = 'Primary RawClaw bot';
+    let mainModel = agentDefaultModel || 'claude-opus-4-6';
+    if (AGENT_ID !== 'main') {
+      // Running as a named agent (e.g. --agent gurt)
+      try {
+        const mainConfig = loadAgentConfig(AGENT_ID);
+        mainName = mainConfig.name;
+        mainDescription = mainConfig.description;
+        mainModel = mainConfig.model || mainModel;
+      } catch { /* fallback to defaults */ }
+    } else {
+      // Running as 'main' — check if the system prompt identifies a named agent
+      const promptSource = agentSystemPrompt || '';
+      const nameMatch = promptSource.match(/^#\s+(\w+)/m)
+        || promptSource.match(/(?:You are|Your name is)\s+\**(\w+)\**/i);
+      if (nameMatch) {
+        mainName = nameMatch[1];
+      }
+    }
+
+    // Filter out the main agent from the sub-agent list to avoid duplication
+    const filteredAgents = AGENT_ID !== 'main'
+      ? agents.filter((a) => a.id !== AGENT_ID)
+      : agents;
+
     const allAgents = [
-      { id: 'main', name: 'Main', description: 'Primary RawClaw bot', model: 'claude-opus-4-6', running: mainRunning, todayTurns: mainStats.todayTurns, todayCost: mainStats.todayCost },
-      ...agents,
+      { id: 'main', name: mainName, description: mainDescription, model: mainModel, running: mainRunning, todayTurns: mainStats.todayTurns, todayCost: mainStats.todayCost },
+      ...filteredAgents,
     ];
 
     return c.json({ agents: allAgents });
@@ -555,6 +967,32 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     return c.json({ ok: true, model, updated });
   });
 
+  // ── Departments ───────────────────────────────────────────────────────
+
+  app.get('/api/departments', (c) => {
+    const depts = listDepartmentsApi();
+    // Enrich with which agents belong to each department (by description match or agent.yaml)
+    const agentIds = listAgentIds();
+    const enriched = depts.map((d) => ({
+      ...d,
+      agents: agentIds.filter((aid) => {
+        try {
+          const config = loadAgentConfig(aid);
+          // Match by description containing department name
+          return config.description?.toLowerCase().includes(d.id) ||
+                 config.description?.toLowerCase().includes(d.name.toLowerCase());
+        } catch { return false; }
+      }),
+    }));
+    return c.json({ departments: enriched });
+  });
+
+  app.get('/api/departments/:id/skills', (c) => {
+    const deptId = c.req.param('id');
+    const status = getDepartmentSkillStatusApi(deptId);
+    return c.json(status);
+  });
+
   // ── Agent Creation & Management ──────────────────────────────────────
 
   // List available agent templates
@@ -588,6 +1026,7 @@ export function startDashboard(botApi?: Api<RawApi>): void {
       model?: string;
       template?: string;
       botToken?: string;
+      department?: string;
     }>();
 
     const id = body?.id?.trim();
@@ -608,6 +1047,7 @@ export function startDashboard(botApi?: Api<RawApi>): void {
         model: body?.model?.trim() || undefined,
         template: body?.template?.trim() || undefined,
         botToken,
+        department: body?.department?.trim() || undefined,
       });
       return c.json({ ok: true, ...result }, 201);
     } catch (err) {
@@ -892,12 +1332,12 @@ export function startDashboard(botApi?: Api<RawApi>): void {
   // Send message from dashboard
   app.post('/api/chat/send', async (c) => {
     if (!botApi) return c.json({ error: 'Bot API not available' }, 503);
-    const body = await c.req.json<{ message?: string }>();
+    const body = await c.req.json<{ message?: string; agentId?: string }>();
     const message = body?.message?.trim();
     if (!message) return c.json({ error: 'message required' }, 400);
 
     // Fire-and-forget: response comes via SSE
-    void processMessageFromDashboard(botApi, message);
+    void processMessageFromDashboard(botApi, message, body?.agentId);
     return c.json({ ok: true });
   });
 

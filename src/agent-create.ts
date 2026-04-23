@@ -6,6 +6,7 @@ import yaml from 'js-yaml';
 
 import { RAWCLAW_CONFIG, PROJECT_ROOT, STORE_DIR } from './config.js';
 import { listAgentIds, loadAgentConfig, resolveAgentDir } from './agent-config.js';
+import { getDepartment, SKILLS_BUNDLE_DIR } from './department-config.js';
 import { logger } from './logger.js';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -30,6 +31,8 @@ export interface CreateAgentOpts {
   model?: string;
   template?: string;
   botToken: string;
+  /** Department ID -- if set, auto-generates CLAUDE.md and installs skills */
+  department?: string;
 }
 
 export interface CreateAgentResult {
@@ -140,7 +143,7 @@ export function listTemplates(): AgentTemplate[] {
 // ── Create ───────────────────────────────────────────────────────────
 
 export async function createAgent(opts: CreateAgentOpts): Promise<CreateAgentResult> {
-  const { id, name, description, model, template, botToken } = opts;
+  const { id, name, description, model, template, botToken, department } = opts;
 
   // Validate ID
   const idCheck = validateAgentId(id);
@@ -178,23 +181,32 @@ export async function createAgent(opts: CreateAgentOpts): Promise<CreateAgentRes
 
   fs.mkdirSync(agentDir, { recursive: true });
 
-  // Resolve template directory
-  const templateId = template || '_template';
-  const templateDir = path.join(PROJECT_ROOT, 'agents', templateId);
+  // Generate CLAUDE.md: prefer department template, fall back to file-based template
+  const dept = department ? getDepartment(department) : undefined;
+  if (dept) {
+    // Department-based: generate CLAUDE.md from department template
+    const claudeContent = dept.generateClaudeMd(name, id);
+    fs.writeFileSync(path.join(agentDir, 'CLAUDE.md'), claudeContent, 'utf-8');
 
-  // Copy CLAUDE.md from template
-  const claudeMdSources = [
-    path.join(templateDir, 'CLAUDE.md'),
-    path.join(templateDir, 'CLAUDE.md.example'),
-    path.join(PROJECT_ROOT, 'agents', '_template', 'CLAUDE.md'),
-  ];
-  for (const src of claudeMdSources) {
-    if (fs.existsSync(src)) {
-      let content = fs.readFileSync(src, 'utf-8');
-      // Replace template agent ID references with the new agent ID
-      content = content.replace(/\[AGENT_ID\]/g, id);
-      fs.writeFileSync(path.join(agentDir, 'CLAUDE.md'), content, 'utf-8');
-      break;
+    // Auto-install department skills
+    installDepartmentSkills(dept.skills);
+  } else {
+    // Legacy template-based approach
+    const templateId = template || '_template';
+    const templateDir = path.join(PROJECT_ROOT, 'agents', templateId);
+
+    const claudeMdSources = [
+      path.join(templateDir, 'CLAUDE.md'),
+      path.join(templateDir, 'CLAUDE.md.example'),
+      path.join(PROJECT_ROOT, 'agents', '_template', 'CLAUDE.md'),
+    ];
+    for (const src of claudeMdSources) {
+      if (fs.existsSync(src)) {
+        let content = fs.readFileSync(src, 'utf-8');
+        content = content.replace(/\[AGENT_ID\]/g, id);
+        fs.writeFileSync(path.join(agentDir, 'CLAUDE.md'), content, 'utf-8');
+        break;
+      }
     }
   }
 
@@ -552,4 +564,67 @@ export function isAgentRunning(agentId: string): boolean {
   } catch {
     return false;
   }
+}
+
+// ── Skill Installation ──────────────────────────────────────────────
+
+/**
+ * Install department skills into ~/.claude/skills/ so Claude Code
+ * auto-loads them via settingSources: ['user'].
+ *
+ * Only installs skills that don't already exist (won't overwrite
+ * user-customized skills).
+ */
+function installDepartmentSkills(skillNames: string[]): void {
+  const userSkillsDir = path.join(os.homedir(), '.claude', 'skills');
+  let installed = 0;
+
+  for (const skillName of skillNames) {
+    const srcDir = path.join(SKILLS_BUNDLE_DIR, skillName);
+    const srcSkill = path.join(srcDir, 'SKILL.md');
+    if (!fs.existsSync(srcSkill)) continue;
+
+    const dstDir = path.join(userSkillsDir, skillName);
+    const dstSkill = path.join(dstDir, 'SKILL.md');
+
+    // Don't overwrite existing skills
+    if (fs.existsSync(dstSkill)) continue;
+
+    fs.mkdirSync(dstDir, { recursive: true });
+    fs.copyFileSync(srcSkill, dstSkill);
+
+    // Copy references directory if present
+    const srcRefs = path.join(srcDir, 'references');
+    if (fs.existsSync(srcRefs)) {
+      const dstRefs = path.join(dstDir, 'references');
+      fs.mkdirSync(dstRefs, { recursive: true });
+      for (const f of fs.readdirSync(srcRefs)) {
+        fs.copyFileSync(path.join(srcRefs, f), path.join(dstRefs, f));
+      }
+    }
+
+    installed++;
+  }
+
+  if (installed > 0) {
+    logger.info({ installed, total: skillNames.length }, 'Installed department skills');
+  }
+}
+
+/** Get the count of skills already installed for a given department. */
+export function getDepartmentSkillStatus(departmentId: string): { installed: number; total: number; skills: Array<{ name: string; installed: boolean }> } {
+  const dept = getDepartment(departmentId);
+  if (!dept) return { installed: 0, total: 0, skills: [] };
+
+  const userSkillsDir = path.join(os.homedir(), '.claude', 'skills');
+  const skills = dept.skills.map((name) => ({
+    name,
+    installed: fs.existsSync(path.join(userSkillsDir, name, 'SKILL.md')),
+  }));
+
+  return {
+    installed: skills.filter((s) => s.installed).length,
+    total: skills.length,
+    skills,
+  };
 }

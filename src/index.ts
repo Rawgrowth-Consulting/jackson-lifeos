@@ -209,10 +209,9 @@ async function main(): Promise<void> {
 
   const bot = createBot();
 
-  // Dashboard only runs in the main bot process
-  if (AGENT_ID === 'main') {
-    startDashboard(bot.api);
-  }
+  // Start dashboard. When running as a named agent (e.g. --agent gurt)
+  // that serves as the primary process, the dashboard still needs to run.
+  startDashboard(bot.api);
 
   if (ALLOWED_CHAT_ID) {
     initScheduler(

@@ -27,6 +27,7 @@ import { buildMemoryContext, evaluateMemoryRelevance, saveConversationTurn } fro
 import { setHighImportanceCallback } from './memory-ingest.js';
 import { messageQueue } from './message-queue.js';
 import { parseDelegation, delegateToAgent, getAvailableAgents } from './orchestrator.js';
+import { loadAgentConfig, resolveAgentClaudeMd } from './agent-config.js';
 import { emitChatEvent, setProcessing, setActiveAbort, abortActiveQuery } from './state.js';
 import { listSkills } from './skill-manage.js';
 import { getMcpServers } from './mcp-config.js';
@@ -1524,39 +1525,70 @@ export function createBot(): Bot {
  * Process a message sent from the dashboard web UI.
  * Runs the agent pipeline and relays the response to Telegram.
  * Response is delivered via SSE (fire-and-forget from the caller's perspective).
+ *
+ * @param targetAgentId  Optional agent to route to. 'all' or undefined = default agent.
  */
 export async function processMessageFromDashboard(
   botApi: Api<RawApi>,
   text: string,
+  targetAgentId?: string,
 ): Promise<void> {
   if (!ALLOWED_CHAT_ID) return;
 
   const chatIdStr = ALLOWED_CHAT_ID;
+  const effectiveAgent = (targetAgentId && targetAgentId !== 'all') ? targetAgentId : undefined;
 
-  logger.info({ messageLen: text.length, source: 'dashboard' }, 'Processing dashboard message');
+  logger.info({ messageLen: text.length, source: 'dashboard', targetAgent: effectiveAgent || AGENT_ID }, 'Processing dashboard message');
 
   // Route through the message queue so dashboard messages wait for any
   // in-flight Telegram message or scheduled task to finish first.
-  messageQueue.enqueue(chatIdStr, () => processDashboardMessage(botApi, text, chatIdStr));
+  messageQueue.enqueue(chatIdStr, () => processDashboardMessage(botApi, text, chatIdStr, effectiveAgent));
 }
 
 async function processDashboardMessage(
   botApi: Api<RawApi>,
   text: string,
   chatIdStr: string,
+  targetAgentId?: string,
 ): Promise<void> {
-  emitChatEvent({ type: 'user_message', chatId: chatIdStr, content: text, source: 'dashboard' });
+  // Resolve which agent to use: targetAgentId overrides default
+  const agentId = targetAgentId || AGENT_ID;
+
+  emitChatEvent({ type: 'user_message', chatId: chatIdStr, agentId, content: text, source: 'dashboard' });
   setProcessing(chatIdStr, true);
 
   try {
-    const sessionId = getSession(chatIdStr, AGENT_ID);
+    const sessionId = getSession(chatIdStr, agentId);
 
-    const { contextText: memCtx, surfacedMemoryIds: dashSurfacedIds, surfacedMemorySummaries: dashSummaries } = await buildMemoryContext(chatIdStr, text, AGENT_ID);
+    // Load system prompt: for non-default agents, read from their CLAUDE.md
+    let systemPrompt: string | undefined;
+    let model: string | undefined;
+    if (targetAgentId) {
+      try {
+        const agentConfig = loadAgentConfig(targetAgentId);
+        model = agentConfig.model;
+      } catch {
+        // Agent config load failed — use defaults
+      }
+      const claudeMdPath = resolveAgentClaudeMd(targetAgentId);
+      if (claudeMdPath) {
+        try {
+          systemPrompt = fs.readFileSync(claudeMdPath, 'utf-8');
+        } catch {
+          // No CLAUDE.md — fine
+        }
+      }
+    } else {
+      systemPrompt = agentSystemPrompt;
+      model = agentDefaultModel;
+    }
+
+    const { contextText: memCtx, surfacedMemoryIds: dashSurfacedIds, surfacedMemorySummaries: dashSummaries } = await buildMemoryContext(chatIdStr, text, agentId);
     const dashParts: string[] = [];
-    if (agentSystemPrompt && !sessionId) dashParts.push(`[Agent role — follow these instructions]\n${agentSystemPrompt}\n[End agent role]`);
+    if (systemPrompt && !sessionId) dashParts.push(`[Agent role — follow these instructions]\n${systemPrompt}\n[End agent role]`);
     if (memCtx) dashParts.push(memCtx);
 
-    const recentDashTasks = getRecentTaskOutputs(AGENT_ID, 30);
+    const recentDashTasks = getRecentTaskOutputs(agentId, 30);
     if (recentDashTasks.length > 0) {
       const taskLines = recentDashTasks.map((t) => {
         const ago = Math.round((Date.now() / 1000 - t.last_run) / 60);
@@ -1569,13 +1601,13 @@ async function processDashboardMessage(
     const fullMessage = dashParts.join('\n\n');
 
     const onProgress = (event: AgentProgressEvent) => {
-      emitChatEvent({ type: 'progress', chatId: chatIdStr, description: event.description });
+      emitChatEvent({ type: 'progress', chatId: chatIdStr, agentId, description: event.description });
     };
 
     const abortCtrl = new AbortController();
     setActiveAbort(chatIdStr, abortCtrl);
     const dashTimeout = setTimeout(() => {
-      logger.warn({ chatId: chatIdStr, timeoutMs: AGENT_TIMEOUT_MS }, 'Dashboard agent query timed out, aborting');
+      logger.warn({ chatId: chatIdStr, agentId, timeoutMs: AGENT_TIMEOUT_MS }, 'Dashboard agent query timed out, aborting');
       abortCtrl.abort();
     }, AGENT_TIMEOUT_MS);
 
@@ -1584,7 +1616,7 @@ async function processDashboardMessage(
       sessionId,
       () => {}, // no typing action for dashboard
       onProgress,
-      agentDefaultModel,
+      model,
       abortCtrl,
     );
 
@@ -1596,24 +1628,24 @@ async function processDashboardMessage(
       const msg = result.text === null
         ? `Timed out after ${Math.round(AGENT_TIMEOUT_MS / 1000)}s. Try breaking the task into smaller steps.`
         : 'Stopped.';
-      emitChatEvent({ type: 'assistant_message', chatId: chatIdStr, content: msg, source: 'dashboard' });
+      emitChatEvent({ type: 'assistant_message', chatId: chatIdStr, agentId, content: msg, source: 'dashboard' });
       return;
     }
 
     if (result.newSessionId) {
-      setSession(chatIdStr, result.newSessionId, AGENT_ID);
+      setSession(chatIdStr, result.newSessionId, agentId);
     }
 
     const rawResponse = result.text?.trim() || 'Done.';
 
     // Save conversation turn
-    saveConversationTurn(chatIdStr, text, rawResponse, result.newSessionId ?? sessionId, AGENT_ID);
+    saveConversationTurn(chatIdStr, text, rawResponse, result.newSessionId ?? sessionId, agentId);
     if (dashSurfacedIds.length > 0) {
       void evaluateMemoryRelevance(dashSurfacedIds, dashSummaries, text, rawResponse).catch(() => {});
     }
 
     // Emit assistant response to SSE clients
-    emitChatEvent({ type: 'assistant_message', chatId: chatIdStr, content: rawResponse, source: 'dashboard' });
+    emitChatEvent({ type: 'assistant_message', chatId: chatIdStr, agentId, content: rawResponse, source: 'dashboard' });
 
     // Relay to Telegram so the user sees it there too
     const { text: responseText } = extractFileMarkers(rawResponse);
@@ -1636,7 +1668,7 @@ async function processDashboardMessage(
           result.usage.lastCallCacheRead + result.usage.lastCallInputTokens,
           result.usage.totalCostUsd,
           result.usage.didCompact,
-          AGENT_ID,
+          agentId,
         );
       } catch (dbErr) {
         logger.error({ err: dbErr }, 'Failed to save token usage');
@@ -1644,8 +1676,8 @@ async function processDashboardMessage(
     }
   } catch (err) {
     setActiveAbort(chatIdStr, null);
-    logger.error({ err }, 'Dashboard message processing error');
-    emitChatEvent({ type: 'error', chatId: chatIdStr, content: 'Something went wrong. Check the logs.' });
+    logger.error({ err, agentId }, 'Dashboard message processing error');
+    emitChatEvent({ type: 'error', chatId: chatIdStr, agentId, content: 'Something went wrong. Check the logs.' });
   } finally {
     setProcessing(chatIdStr, false);
   }

@@ -545,7 +545,7 @@ export function getDashboardHtml(token: string, chatId: string): string {
 <!-- Agent Status Cards -->
 <div id="agents-section" class="mb-5" style="display:none">
   <div class="flex items-center justify-between mb-2">
-    <h2 class="text-sm font-semibold text-[#495c52] uppercase tracking-wider">Agents</h2>
+    <h2 class="text-sm font-semibold text-[#495c52] uppercase tracking-wider">Organization</h2>
     <div class="flex items-center gap-2">
       <button onclick="openCreateAgentWizard()" style="background:#09321f;color:#f5efe9;border:none;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">+ New Agent</button>
       <div class="model-picker" onclick="toggleModelPicker(this)" style="display:inline-block">
@@ -558,7 +558,27 @@ export function getDashboardHtml(token: string, chatId: string): string {
       </div>
     </div>
   </div>
-  <div id="agents-container" class="flex flex-wrap gap-3"></div>
+
+  <!-- CEO / Main Agent Card -->
+  <div id="org-ceo-card" class="card" style="border-left:3px solid #8B5CF6;margin-bottom:16px;cursor:pointer" onclick="toggleAgentDetail('main')">
+    <div class="flex items-center gap-3">
+      <div style="width:36px;height:36px;border-radius:50%;background:#8B5CF6;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px" id="org-ceo-avatar">G</div>
+      <div style="flex:1">
+        <div class="font-bold text-[#052415] text-sm" id="org-ceo-name">Gurt</div>
+        <div class="text-xs text-[#495c52]" id="org-ceo-desc">CEO Agent</div>
+      </div>
+      <div id="org-ceo-status"></div>
+    </div>
+  </div>
+
+  <!-- Connector line -->
+  <div style="width:2px;height:16px;background:rgba(5,36,21,0.1);margin:0 auto"></div>
+
+  <!-- Department Grid -->
+  <div id="org-departments" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>
+
+  <!-- Legacy flat agent view (hidden, kept for compat) -->
+  <div id="agents-container" class="flex flex-wrap gap-3" style="display:none"></div>
 </div>
 
 <!-- Hive Mind Feed -->
@@ -646,6 +666,11 @@ export function getDashboardHtml(token: string, chatId: string): string {
       <label class="text-xs text-[#495c52] block mb-1">Display Name</label>
       <input type="text" id="caw-name" placeholder="e.g. Analytics" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 12px;color:#052415;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box" maxlength="50" oninput="cawNameManuallyEdited=true">
 
+      <label class="text-xs text-[#495c52] block mb-1">Department <span style="color:#9ca3af">(auto-generates system prompt + installs skills)</span></label>
+      <select id="caw-department" onchange="cawDeptChanged()" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 10px;color:#052415;font-size:12px;outline:none;margin-bottom:8px">
+        <option value="">-- No department (custom) --</option>
+      </select>
+
       <label class="text-xs text-[#495c52] block mb-1">Description</label>
       <input type="text" id="caw-desc" placeholder="What this agent does" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 12px;color:#052415;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box" maxlength="200">
 
@@ -658,7 +683,7 @@ export function getDashboardHtml(token: string, chatId: string): string {
             <option value="claude-haiku-4-5">Haiku 4.5</option>
           </select>
         </div>
-        <div style="flex:1">
+        <div id="caw-template-row" style="flex:1">
           <label class="text-xs text-[#495c52] block mb-1">Template</label>
           <select id="caw-template" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 10px;color:#052415;font-size:12px;outline:none">
             <option value="_template">Blank</option>
@@ -1388,37 +1413,170 @@ const AGENT_COLORS = { main: '#09321f', comms: '#0ea5e9', content: '#f59e0b', op
 
 async function loadAgents() {
   try {
-    const data = await api('/api/agents');
+    const [agentData, deptData] = await Promise.all([
+      api('/api/agents'),
+      api('/api/departments'),
+    ]);
     const section = document.getElementById('agents-section');
-    const container = document.getElementById('agents-container');
-    // Always show agents section so "+ New Agent" button is accessible
     section.style.display = '';
-    if (!data.agents || data.agents.length <= 1) {
-      container.innerHTML = '<div class="text-xs text-[#495c52] py-2">No agents yet. Click + New Agent to create one.</div>';
-      return;
+
+    const agents = agentData.agents || [];
+    const departments = deptData.departments || [];
+
+    // Populate CEO card (main agent)
+    const mainAgent = agents.find(a => a.id === 'main');
+    if (mainAgent) {
+      document.getElementById('org-ceo-avatar').textContent = mainAgent.name.charAt(0);
+      document.getElementById('org-ceo-name').textContent = mainAgent.name;
+      document.getElementById('org-ceo-desc').textContent = mainAgent.description || 'CEO Agent';
+      document.getElementById('org-ceo-status').innerHTML = mainAgent.running
+        ? '<span class="pill pill-running">live</span>'
+        : '<span class="pill pill-paused">off</span>';
     }
-    container.innerHTML = data.agents.map(a => {
-      const color = AGENT_COLORS[a.id] || '#6b7280';
-      const dot = a.running ? '<span style="color:#7ea37e">\u25CF</span>' : '<span style="color:#495c52">\u25CB</span>';
-      const statusText = a.running ? 'live' : 'off';
-      const modelOpts = ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-haiku-4-5'];
-      const modelShort = function(m) { return {'claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-sonnet-4-5':'Sonnet 4.5','claude-haiku-4-5':'Haiku'}[m] || m; };
-      const currentModel = a.model || (a.id === 'main' ? 'claude-opus-4-6' : 'claude-sonnet-4-6');
-      const modelLabel = modelShort(currentModel);
-      const modelSelect = '<div class="model-picker" data-agent="' + a.id + '" onclick="event.stopPropagation();toggleModelPicker(this)">' +
-        '<span class="model-current">' + modelLabel + ' <span style="font-size:8px;opacity:0.5">&#9662;</span></span>' +
-        '<div class="model-menu" style="display:none">' +
-          modelOpts.map(m => '<div class="model-opt' + (currentModel === m ? ' model-active' : '') + '" data-model="' + m + '" onclick="pickModel(this)">' + modelShort(m) + '</div>').join('') +
-        '</div>' +
-      '</div>';
-      return '<div class="card clickable-card" style="min-width:130px;flex:1;max-width:220px;border-left:3px solid ' + color + '" data-agent="' + a.id + '" onclick="toggleAgentDetail(this.dataset.agent)">' +
-        '<div class="font-bold text-[#052415] text-sm">' + a.name + '</div>' +
-        '<div class="text-xs mt-1">' + dot + ' ' + statusText + '</div>' +
-        modelSelect +
-        (a.running ? '<div class="text-xs text-[#495c52] mt-1">' + a.todayTurns + ' turns</div>' : '') +
-      '</div>';
-    }).join('');
-  } catch {}
+
+    // Build department grid
+    const deptContainer = document.getElementById('org-departments');
+    const subAgents = agents.filter(a => a.id !== 'main');
+
+    // Map agents to departments by matching description keywords
+    const agentDeptMap = {};
+    subAgents.forEach(function(a) {
+      var matched = false;
+      for (var d of departments) {
+        var descLower = (a.description || '').toLowerCase();
+        if (descLower.includes(d.id) || descLower.includes(d.name.toLowerCase())) {
+          if (!agentDeptMap[d.id]) agentDeptMap[d.id] = [];
+          agentDeptMap[d.id].push(a);
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        if (!agentDeptMap['_unassigned']) agentDeptMap['_unassigned'] = [];
+        agentDeptMap['_unassigned'].push(a);
+      }
+    });
+
+    var html = '';
+    departments.forEach(function(dept) {
+      var deptAgents = agentDeptMap[dept.id] || [];
+      var agentCount = deptAgents.length;
+      var hasLiveAgent = deptAgents.some(a => a.running);
+
+      html += '<div class="card" style="border-left:3px solid ' + dept.color + ';cursor:pointer;padding:14px" onclick="openDeptDetail(\\'' + dept.id + '\\')">';
+      html += '<div class="flex items-center gap-2 mb-1">';
+      html += '<span style="font-size:16px">' + dept.emoji + '</span>';
+      html += '<span class="font-bold text-[#052415] text-sm">' + dept.name + '</span>';
+      if (hasLiveAgent) html += '<span style="width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.4);display:inline-block"></span>';
+      html += '</div>';
+      html += '<div class="text-xs text-[#495c52]" style="margin-bottom:6px">' + dept.description + '</div>';
+
+      if (agentCount > 0) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+        deptAgents.forEach(function(a) {
+          var dot = a.running ? '#22c55e' : '#9ca3af';
+          html += '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(5,36,21,0.04);border-radius:12px;padding:2px 8px;font-size:11px;color:#052415">';
+          html += '<span style="width:5px;height:5px;border-radius:50%;background:' + dot + '"></span>';
+          html += a.name;
+          html += '</span>';
+        });
+        html += '</div>';
+      } else {
+        html += '<div class="text-xs" style="color:#9ca3af;font-style:italic">No agents yet</div>';
+      }
+
+      html += '</div>';
+    });
+
+    // Unassigned agents
+    var unassigned = agentDeptMap['_unassigned'] || [];
+    if (unassigned.length > 0) {
+      html += '<div class="card" style="border-left:3px solid #9ca3af;padding:14px">';
+      html += '<div class="font-bold text-[#052415] text-sm mb-1">Other</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+      unassigned.forEach(function(a) {
+        var dot = a.running ? '#22c55e' : '#9ca3af';
+        html += '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(5,36,21,0.04);border-radius:12px;padding:2px 8px;font-size:11px;color:#052415" onclick="event.stopPropagation();toggleAgentDetail(\\'' + a.id + '\\')" style="cursor:pointer">';
+        html += '<span style="width:5px;height:5px;border-radius:50%;background:' + dot + '"></span>';
+        html += a.name;
+        html += '</span>';
+      });
+      html += '</div></div>';
+    }
+
+    deptContainer.innerHTML = html;
+  } catch(e) { console.error('loadAgents error', e); }
+}
+
+// Department detail modal
+async function openDeptDetail(deptId) {
+  var overlay = document.getElementById('agent-modal-overlay');
+  var modal = document.getElementById('agent-modal');
+  var title = document.getElementById('agent-modal-title');
+  var body = document.getElementById('agent-modal-body');
+
+  title.textContent = 'Loading...';
+  body.innerHTML = '<div class="text-[#495c52] text-sm text-center py-8">Loading...</div>';
+
+  overlay.style.opacity = '1'; overlay.style.pointerEvents = 'auto';
+  modal.style.opacity = '1'; modal.style.pointerEvents = 'auto';
+  modal.style.transform = 'translate(-50%,-50%) scale(1)';
+
+  try {
+    var [deptData, agentData, skillData] = await Promise.all([
+      api('/api/departments'),
+      api('/api/agents'),
+      api('/api/departments/' + deptId + '/skills'),
+    ]);
+
+    var dept = (deptData.departments || []).find(d => d.id === deptId);
+    if (!dept) { body.innerHTML = '<div class="text-red-400">Department not found</div>'; return; }
+
+    title.innerHTML = '<span style="font-size:18px;margin-right:6px">' + dept.emoji + '</span> ' + dept.name;
+
+    var agents = (agentData.agents || []).filter(a => {
+      var desc = (a.description || '').toLowerCase();
+      return desc.includes(deptId) || desc.includes(dept.name.toLowerCase());
+    });
+
+    var html = '';
+
+    // Agents in this department
+    html += '<div class="text-xs text-[#495c52] font-semibold mb-2 uppercase">Agents (' + agents.length + ')</div>';
+    if (agents.length > 0) {
+      agents.forEach(function(a) {
+        var dot = a.running ? '<span style="color:#22c55e">&#9679;</span>' : '<span style="color:#9ca3af">&#9675;</span>';
+        html += '<div style="background:#f5efe9;border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer" onclick="closeAgentModal();toggleAgentDetail(\\'' + a.id + '\\')">';
+        html += '<div class="flex items-center gap-2">';
+        html += '<div class="font-bold text-[#052415] text-sm">' + a.name + '</div> ' + dot;
+        html += '</div>';
+        html += '<div class="text-xs text-[#495c52]">' + (a.description || '') + '</div>';
+        html += '</div>';
+      });
+    } else {
+      html += '<div style="background:#f5efe9;border-radius:8px;padding:12px;margin-bottom:6px;text-align:center">';
+      html += '<div class="text-xs text-[#495c52] mb-2">No agents in this department yet</div>';
+      html += '<button onclick="closeAgentModal();openCreateAgentWizard(\\'' + deptId + '\\')" style="background:#09321f;color:#f5efe9;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">+ Create ' + dept.name + ' Agent</button>';
+      html += '</div>';
+    }
+
+    // Skills
+    html += '<div class="text-xs text-[#495c52] font-semibold mt-3 mb-2 uppercase">Skills (' + skillData.installed + '/' + skillData.total + ' installed)</div>';
+    if (skillData.skills && skillData.skills.length > 0) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+      skillData.skills.forEach(function(s) {
+        var bg = s.installed ? 'rgba(126,163,126,0.15)' : 'rgba(5,36,21,0.04)';
+        var color = s.installed ? '#7ea37e' : '#9ca3af';
+        var icon = s.installed ? '&#10003; ' : '';
+        html += '<span style="background:' + bg + ';color:' + color + ';border-radius:12px;padding:2px 10px;font-size:11px;font-weight:500">' + icon + s.name + '</span>';
+      });
+      html += '</div>';
+    }
+
+    body.innerHTML = html;
+  } catch(e) {
+    body.innerHTML = '<div class="text-red-400 text-sm">Failed to load department details</div>';
+  }
 }
 
 function toggleModelPicker(el) {
@@ -1610,13 +1768,16 @@ let cawIdDebounce = null;
 let cawTokenDebounce = null;
 let cawNameManuallyEdited = false;
 
-function openCreateAgentWizard() {
+var cawSelectedDept = '';
+
+function openCreateAgentWizard(preselectedDept) {
   cawStep = 1;
   cawIdValid = false;
   cawTokenValid = false;
   cawBotInfo = null;
   cawCreatedId = null;
   cawNameManuallyEdited = false;
+  cawSelectedDept = preselectedDept || '';
   document.getElementById('caw-id').value = '';
   document.getElementById('caw-name').value = '';
   document.getElementById('caw-desc').value = '';
@@ -1628,6 +1789,7 @@ function openCreateAgentWizard() {
   document.getElementById('caw-step1-error').style.display = 'none';
   document.getElementById('caw-step2-error').style.display = 'none';
   cawShowStep(1);
+  loadCawDepartments(preselectedDept);
   loadCawTemplates();
   var o = document.getElementById('create-agent-overlay');
   var m = document.getElementById('create-agent-modal');
@@ -1635,6 +1797,40 @@ function openCreateAgentWizard() {
   m.style.opacity = '1'; m.style.pointerEvents = 'auto';
   m.style.transform = 'translate(-50%,-50%) scale(1)';
   setTimeout(function() { document.getElementById('caw-id').focus(); }, 200);
+}
+
+async function loadCawDepartments(preselected) {
+  try {
+    var data = await api('/api/departments');
+    var sel = document.getElementById('caw-department');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- No department (custom) --</option>';
+    (data.departments || []).forEach(function(d) {
+      var opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.emoji + ' ' + d.name + ' - ' + d.description.slice(0, 50);
+      if (preselected && preselected === d.id) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    // If preselected, auto-fill description
+    if (preselected) cawDeptChanged();
+  } catch(e) { console.error('Dept load error:', e); }
+}
+
+function cawDeptChanged() {
+  var sel = document.getElementById('caw-department');
+  cawSelectedDept = sel.value;
+  // Auto-fill description from department if set
+  if (cawSelectedDept) {
+    var opt = sel.options[sel.selectedIndex];
+    var descPart = opt.textContent.split(' - ')[1] || '';
+    if (descPart && !document.getElementById('caw-desc').value) {
+      document.getElementById('caw-desc').value = descPart;
+    }
+  }
+  // Show/hide template selector (hide when department is selected)
+  var templateRow = document.getElementById('caw-template-row');
+  if (templateRow) templateRow.style.display = cawSelectedDept ? 'none' : '';
 }
 
 function closeCreateAgentWizard() {
@@ -1793,17 +1989,22 @@ async function cawCreate() {
   errEl.style.display = 'none';
 
   try {
+    var payload = {
+      id: document.getElementById('caw-id').value.trim(),
+      name: document.getElementById('caw-name').value.trim(),
+      description: document.getElementById('caw-desc').value.trim(),
+      model: document.getElementById('caw-model').value,
+      botToken: document.getElementById('caw-token').value.trim(),
+    };
+    if (cawSelectedDept) {
+      payload.department = cawSelectedDept;
+    } else {
+      payload.template = document.getElementById('caw-template').value;
+    }
     var res = await fetch(BASE + '/api/agents/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: document.getElementById('caw-id').value.trim(),
-        name: document.getElementById('caw-name').value.trim(),
-        description: document.getElementById('caw-desc').value.trim(),
-        model: document.getElementById('caw-model').value,
-        template: document.getElementById('caw-template').value,
-        botToken: document.getElementById('caw-token').value.trim(),
-      }),
+      body: JSON.stringify(payload),
     });
     var data = await res.json();
     if (!res.ok || data.error) {
