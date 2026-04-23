@@ -980,16 +980,30 @@ Do NOT use markdown formatting - respond in plain text. Use short paragraphs.`;
 
   app.get('/api/departments', (c) => {
     const depts = listDepartmentsApi();
-    // Enrich with which agents belong to each department (by description match or agent.yaml)
     const agentIds = listAgentIds();
+
+    // Build keyword map for smarter department matching
+    const deptKeywords: Record<string, string[]> = {
+      executive: ['ceo', 'executive', 'chief', 'strategy', 'delegation', 'oversight'],
+      sales: ['sales', 'outbound', 'inbound', 'proposal', 'pipeline'],
+      content: ['content', 'copywriting', 'social media', 'video', 'script'],
+      research: ['research', 'intel', 'competitive', 'analysis', 'data'],
+      ads: ['ads', 'advertising', 'paid', 'campaign', 'creative'],
+      finance: ['finance', 'budget', 'p&l', 'invoice', 'cash flow', 'forecasting'],
+      ops: ['ops', 'operations', 'onboarding', 'scheduling', 'sop', 'client'],
+      recruiting: ['recruit', 'hiring', 'team growth', 'training'],
+      seo: ['seo', 'search', 'schema', 'ranking', 'organic'],
+      comms: ['comms', 'communication', 'email', 'newsletter', 'messaging'],
+    };
+
     const enriched = depts.map((d) => ({
       ...d,
       agents: agentIds.filter((aid) => {
         try {
           const config = loadAgentConfig(aid);
-          // Match by description containing department name
-          return config.description?.toLowerCase().includes(d.id) ||
-                 config.description?.toLowerCase().includes(d.name.toLowerCase());
+          const haystack = `${aid} ${config.name} ${config.description || ''}`.toLowerCase();
+          const keywords = deptKeywords[d.id] || [d.id, d.name.toLowerCase()];
+          return keywords.some((kw) => haystack.includes(kw));
         } catch { return false; }
       }),
     }));
