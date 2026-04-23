@@ -430,17 +430,19 @@ function chatBubbleHtml(): string {
   </button>
   <div class="chat-panel" id="chatPanel">
     <div class="chat-panel-header">
-      <div class="chat-panel-header-left">
-        <div style="width:8px;height:8px;border-radius:50%;background:var(--color-sage);box-shadow:0 0 6px rgba(126,163,126,0.5);"></div>
-        <div class="chat-panel-header-title">Gurt</div>
+      <div class="chat-panel-header-left" style="flex:1;min-width:0;">
+        <div id="chatPanelDot" style="width:8px;height:8px;border-radius:50%;background:#9ca3af;flex-shrink:0;"></div>
+        <select id="chatPanelAgent" onchange="onChatPanelAgentChange()" style="background:transparent;border:none;color:var(--color-cream);font-size:14px;font-weight:600;cursor:pointer;padding:4px 6px;border-radius:6px;max-width:100%;">
+          <option value="">Loading...</option>
+        </select>
       </div>
       <button class="chat-panel-close" onclick="toggleChatPanel()">&times;</button>
     </div>
     <div class="chat-panel-messages" id="chatPanelMessages">
-      <div class="chat-bubble chat-bubble-assistant">Hey Jackson! How can I help you today?</div>
+      <div class="chat-bubble chat-bubble-assistant">Pick an agent above and send a message.</div>
     </div>
     <div class="chat-panel-input-area">
-      <input type="text" class="chat-panel-input" id="chatPanelInput" placeholder="Ask Gurt anything..." onkeydown="if(event.key==='Enter')sendChatPanelMessage()">
+      <input type="text" class="chat-panel-input" id="chatPanelInput" placeholder="Message..." onkeydown="if(event.key==='Enter')sendChatPanelMessage()">
       <button class="chat-panel-send" onclick="sendChatPanelMessage()">Send</button>
     </div>
   </div>`;
@@ -449,8 +451,10 @@ function chatBubbleHtml(): string {
 function chatBubbleScript(): string {
   return `
   <script>
+  var chatPanelSSE = null;
+
   function toggleChatPanel() {
-    const panel = document.getElementById('chatPanel');
+    var panel = document.getElementById('chatPanel');
     panel.classList.toggle('open');
     localStorage.setItem('lifeos_chat_open', panel.classList.contains('open') ? '1' : '0');
     if (panel.classList.contains('open')) {
@@ -458,63 +462,101 @@ function chatBubbleScript(): string {
     }
   }
   if (localStorage.getItem('lifeos_chat_open') === '1') {
-    document.getElementById('chatPanel').classList.add('open');
+    var _p = document.getElementById('chatPanel');
+    if (_p) _p.classList.add('open');
+  }
+
+  async function loadChatPanelAgents() {
+    try {
+      var res = await fetch('/api/agents', { credentials: 'same-origin' });
+      var data = await res.json();
+      var live = (data.agents || []).filter(function(a) { return a.running && a.id !== 'main'; });
+      var select = document.getElementById('chatPanelAgent');
+      if (!live.length) {
+        select.innerHTML = '<option value="">No agents online</option>';
+        document.getElementById('chatPanelDot').style.background = '#9ca3af';
+        document.getElementById('chatPanelInput').placeholder = 'No agents online';
+        return;
+      }
+      var saved = localStorage.getItem('lifeos_chat_agent');
+      var matched = live.find(function(a) { return a.id === saved; });
+      var defaultId = matched ? matched.id : live[0].id;
+      select.innerHTML = live.map(function(a) {
+        return '<option value="' + a.id + '"' + (a.id === defaultId ? ' selected' : '') + '>' + a.name + '</option>';
+      }).join('');
+      document.getElementById('chatPanelDot').style.background = '#22c55e';
+      onChatPanelAgentChange();
+    } catch (e) {
+      console.error('chat panel agents load failed:', e);
+    }
+  }
+
+  function onChatPanelAgentChange() {
+    var select = document.getElementById('chatPanelAgent');
+    if (!select || !select.value) return;
+    var name = select.options[select.selectedIndex].text;
+    localStorage.setItem('lifeos_chat_agent', select.value);
+    document.getElementById('chatPanelInput').placeholder = 'Message ' + name + '...';
+  }
+
+  function openChatPanelSSE() {
+    if (chatPanelSSE) return;
+    chatPanelSSE = new EventSource('/api/chat/stream');
+    chatPanelSSE.addEventListener('assistant_message', function(e) {
+      try {
+        var ev = JSON.parse(e.data);
+        if (ev.source !== 'dashboard') return;
+        var messages = document.getElementById('chatPanelMessages');
+        if (!messages) return;
+        var typingNode = messages.querySelector('.chat-typing');
+        if (typingNode) typingNode.remove();
+        var bubble = document.createElement('div');
+        bubble.className = 'chat-bubble chat-bubble-assistant';
+        bubble.innerHTML = ev.content || '';
+        messages.appendChild(bubble);
+        messages.scrollTop = messages.scrollHeight;
+      } catch (err) { console.error('chat panel SSE parse', err); }
+    });
+    chatPanelSSE.onerror = function() {
+      if (chatPanelSSE) chatPanelSSE.close();
+      chatPanelSSE = null;
+      setTimeout(openChatPanelSSE, 3000);
+    };
   }
 
   async function sendChatPanelMessage() {
-    const input = document.getElementById('chatPanelInput');
-    const msg = input.value.trim();
+    var input = document.getElementById('chatPanelInput');
+    var msg = input.value.trim();
     if (!msg) return;
+    var select = document.getElementById('chatPanelAgent');
+    var agentId = select ? select.value : '';
+    if (!agentId) { input.placeholder = 'No agent selected'; return; }
     input.value = '';
 
-    const messages = document.getElementById('chatPanelMessages');
-    const userBubble = document.createElement('div');
+    var messages = document.getElementById('chatPanelMessages');
+    var userBubble = document.createElement('div');
     userBubble.className = 'chat-bubble chat-bubble-user';
     userBubble.textContent = msg;
     messages.appendChild(userBubble);
 
-    const typing = document.createElement('div');
+    var typing = document.createElement('div');
     typing.className = 'chat-bubble chat-bubble-assistant chat-typing';
     typing.innerHTML = '<div class="chat-typing-dot"></div><div class="chat-typing-dot"></div><div class="chat-typing-dot"></div>';
     messages.appendChild(typing);
     messages.scrollTop = messages.scrollHeight;
 
     try {
-      const res = await fetch('/api/chat/send', {
+      openChatPanelSSE();
+      var res = await fetch('/api/chat/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg })
+        credentials: 'same-origin',
+        body: JSON.stringify({ message: msg, agentId: agentId })
       });
       if (!res.ok) throw new Error('Send failed');
-
-      typing.remove();
-
-      const assistantBubble = document.createElement('div');
-      assistantBubble.className = 'chat-bubble chat-bubble-assistant';
-      assistantBubble.textContent = '';
-      messages.appendChild(assistantBubble);
-
-      const evtSource = new EventSource('/api/chat/stream');
-      evtSource.onmessage = (e) => {
-        if (e.data === '[DONE]') {
-          evtSource.close();
-          return;
-        }
-        try {
-          const data = JSON.parse(e.data);
-          if (data.content) {
-            assistantBubble.textContent += data.content;
-            messages.scrollTop = messages.scrollHeight;
-          }
-        } catch {
-          assistantBubble.textContent += e.data;
-          messages.scrollTop = messages.scrollHeight;
-        }
-      };
-      evtSource.onerror = () => { evtSource.close(); };
     } catch (err) {
       typing.remove();
-      const errBubble = document.createElement('div');
+      var errBubble = document.createElement('div');
       errBubble.className = 'chat-bubble chat-bubble-assistant';
       errBubble.textContent = 'Sorry, something went wrong. Try again.';
       errBubble.style.color = 'var(--color-clay)';
@@ -522,6 +564,15 @@ function chatBubbleScript(): string {
     }
     messages.scrollTop = messages.scrollHeight;
   }
+
+  // Init after auth
+  fetch('/api/auth-check', { credentials: 'same-origin' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.authenticated) { loadChatPanelAgents(); openChatPanelSSE(); } });
+  window.addEventListener('rawclaw-authenticated', function() {
+    loadChatPanelAgents();
+    openChatPanelSSE();
+  });
   </script>`;
 }
 
@@ -2320,24 +2371,12 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
   const body = `
   <div class="animate-lift-in">
     <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Agents</h1>
-    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Your AI team -- chat, delegate, orchestrate.</p>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Your live AI team -- currently running on Telegram.</p>
   </div>
 
-  <!-- CEO Card -->
-  <div id="agents-ceo-card" class="card card-hover animate-lift-in" style="margin-bottom:20px;border-left:3px solid #8B5CF6;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div id="agents-ceo-avatar" style="width:44px;height:44px;border-radius:12px;background:rgba(126,163,126,0.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#09321f;">G</div>
-      <div style="flex:1;">
-        <div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);" id="agents-ceo-name">Loading...</div>
-        <span class="pill pill-active" style="margin-top:3px;" id="agents-ceo-status">Active</span>
-      </div>
-      <button class="los-btn" style="font-size:12px;padding:9px 16px;" onclick="document.getElementById('agentChatArea').scrollIntoView({behavior:'smooth'})">Chat</button>
-    </div>
-  </div>
-
-  <!-- Department Grid -->
-  <div id="agents-dept-grid" class="agents-grid animate-lift-in delay-1" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:36px;">
-    <div class="text-center" style="grid-column:1/-1;padding:20px;color:var(--color-sage-muted);">Loading departments...</div>
+  <!-- Live Agents Grid -->
+  <div id="agents-live-grid" class="agents-grid animate-lift-in" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:36px;">
+    <div class="text-center" style="grid-column:1/-1;padding:20px;color:var(--color-sage-muted);">Loading agents...</div>
   </div>
 
   <style>
@@ -2346,16 +2385,16 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
   </style>
 
   <!-- Chat Interface -->
-  <div id="agentChatArea" class="section-title animate-lift-in delay-2">Chat</div>
-  <div class="card animate-lift-in delay-2" style="padding:0;overflow:hidden;display:flex;flex-direction:column;height:500px;">
+  <div id="agentChatArea" class="section-title animate-lift-in delay-1">Chat</div>
+  <div class="card animate-lift-in delay-1" style="padding:0;overflow:hidden;display:flex;flex-direction:column;height:500px;">
     <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--color-forest);flex-shrink:0;">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--color-sage);box-shadow:0 0 6px rgba(126,163,126,0.5);"></div>
-      <div style="font-size:15px;font-weight:600;color:var(--color-cream);" id="agentChatName">Gurt</div>
-      <span style="font-size:11px;color:rgba(245,239,233,0.6);" id="agentChatStatus">Online</span>
+      <div style="font-size:15px;font-weight:600;color:var(--color-cream);" id="agentChatName">Agents</div>
+      <span style="font-size:11px;color:rgba(245,239,233,0.6);" id="agentChatStatus">Pick one below</span>
     </div>
     <div id="agentChatTabs" style="display:flex;gap:0;border-bottom:1px solid var(--color-stone-50);overflow-x:auto;background:var(--color-paper);"></div>
     <div id="agentMessages" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:10px;background:var(--color-cream-soft);">
-      <div class="chat-bubble chat-bubble-assistant">Hey Jackson! What do you need?</div>
+      <div class="chat-bubble chat-bubble-assistant">Pick an agent to start chatting.</div>
     </div>
     <div id="agentTyping" style="display:none;padding:0 20px 8px;background:var(--color-cream-soft);">
       <div class="chat-bubble chat-bubble-assistant chat-typing" style="display:inline-flex;">
@@ -2363,76 +2402,67 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
       </div>
     </div>
     <div style="display:flex;gap:10px;padding:14px 20px;background:var(--color-paper);border-top:1px solid var(--color-stone-50);flex-shrink:0;">
-      <input type="text" id="agentInput" class="los-input" style="flex:1;border-radius:999px;padding:10px 18px;" placeholder="Message Gurt..." onkeydown="if(event.key==='Enter')sendAgentMessage()">
+      <input type="text" id="agentInput" class="los-input" style="flex:1;border-radius:999px;padding:10px 18px;" placeholder="Message..." onkeydown="if(event.key==='Enter')sendAgentMessage()">
       <button class="los-btn" onclick="sendAgentMessage()" style="padding:10px 20px;">Send</button>
     </div>
   </div>
 
   <script>
-  var activeAgent = 'main';
+  var activeAgent = '';
   var agentSSE = null;
+  var agentsCache = [];
 
   async function loadAgentsPage() {
     try {
-      var results = await Promise.all([
-        fetch('/api/agents', {credentials:'same-origin'}).then(function(r) { return r.json(); }),
-        fetch('/api/departments', {credentials:'same-origin'}).then(function(r) { return r.json(); }),
-      ]);
-      var agents = results[0].agents || [];
-      var depts = results[1].departments || [];
+      var res = await fetch('/api/agents', { credentials: 'same-origin' });
+      var data = await res.json();
+      var all = data.agents || [];
+      // Only real, running agents (drop synthetic "main" and anything offline)
+      var live = all.filter(function(a) { return a.id !== 'main' && a.running; });
+      agentsCache = live;
 
-      var main = agents.find(function(a) { return a.id === 'main'; });
-      if (main) {
-        document.getElementById('agents-ceo-name').textContent = main.name + ' (CEO)';
-        document.getElementById('agents-ceo-avatar').textContent = main.name.charAt(0);
-        document.getElementById('agents-ceo-status').textContent = main.running ? 'Active' : 'Offline';
-        document.getElementById('agents-ceo-status').className = main.running ? 'pill pill-active' : 'pill pill-soon';
+      var grid = document.getElementById('agents-live-grid');
+      if (!live.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--color-sage-muted);">No agents are online. Check <code>systemctl</code> on the VPS.</div>';
+        return;
       }
 
-      var grid = document.getElementById('agents-dept-grid');
-      var subAgents = agents.filter(function(a) { return a.id !== 'main'; });
-      var mainName = main ? main.name.toLowerCase() : '';
-
-      grid.innerHTML = depts.map(function(d) {
-        var deptAgents = subAgents.filter(function(a) {
-          var hay = (a.id + ' ' + a.name + ' ' + (a.description || '')).toLowerCase();
-          return hay.includes(d.id) || hay.includes(d.name.toLowerCase());
-        });
-        var hasAgent = deptAgents.length > 0;
-        var isLive = deptAgents.some(function(a) { return a.running; });
-        var opacity = hasAgent ? '1' : '0.65';
-        var statusPill = hasAgent
-          ? (isLive ? '<span class="pill pill-active">Active</span>' : '<span class="pill pill-soon">Offline</span>')
-          : '<span class="pill pill-soon">No Agent</span>';
-        var chips = deptAgents.map(function(a) {
-          var dot = a.running ? '#22c55e' : '#9ca3af';
-          return '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(5,36,21,0.04);border-radius:12px;padding:2px 8px;font-size:11px;color:var(--color-forest-deep);margin-top:6px;cursor:pointer" onclick="switchAgent(\'' + a.id + '\')">' +
-            '<span style="width:5px;height:5px;border-radius:50%;background:' + dot + '"></span>' + a.name + '</span>';
-        }).join(' ');
-        return '<div class="card" style="opacity:' + opacity + ';margin-bottom:0;border-left:3px solid ' + d.color + '">' +
-          '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">' +
-            '<div style="font-size:20px;">' + d.emoji + '</div>' +
-            '<div style="flex:1;"><div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);">' + d.name + '</div>' + statusPill + '</div>' +
+      grid.innerHTML = live.map(function(a) {
+        var initial = (a.name || a.id).charAt(0).toUpperCase();
+        var cost = (a.todayCost || 0).toFixed(2);
+        var turns = a.todayTurns || 0;
+        return '<div class="card card-hover" style="margin-bottom:0;border-left:3px solid #09321f;">' +
+          '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">' +
+            '<div style="width:40px;height:40px;border-radius:10px;background:rgba(126,163,126,0.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#09321f;">' + initial + '</div>' +
+            '<div style="flex:1;min-width:0;">' +
+              '<div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);">' + a.name + '</div>' +
+              '<span class="pill pill-active" style="margin-top:3px;">Live on Telegram</span>' +
+            '</div>' +
           '</div>' +
-          '<p style="font-size:12px;color:var(--color-sage-muted);margin:0;">' + d.description + '</p>' +
-          (chips ? '<div style="margin-top:4px">' + chips + '</div>' : '') +
+          '<p style="font-size:12px;color:var(--color-sage-muted);margin:0 0 12px;min-height:30px;">' + (a.description || '') + '</p>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--color-sage-muted);">' +
+            '<span>' + turns + ' turns today &middot; $' + cost + '</span>' +
+            '<button class="los-btn" style="font-size:11px;padding:6px 12px;" onclick="switchAgent(\\'' + a.id + '\\')">Chat</button>' +
+          '</div>' +
         '</div>';
       }).join('');
 
+      // Chat tabs from live agents only
       var tabs = document.getElementById('agentChatTabs');
-      var mainTab = '<button style="padding:8px 14px;font-size:12px;font-weight:600;border:none;border-bottom:2px solid var(--color-sage);background:none;color:var(--color-forest-deep);cursor:pointer" onclick="switchAgent(\'main\')" id="tab-main">' + (main ? main.name : 'Main') + '</button>';
-      var otherTabs = subAgents.filter(function(a) { return a.name.toLowerCase() !== mainName; }).map(function(a) {
-        return '<button style="padding:8px 14px;font-size:12px;font-weight:500;border:none;border-bottom:2px solid transparent;background:none;color:var(--color-sage-muted);cursor:pointer" onclick="switchAgent(\'' + a.id + '\')" id="tab-' + a.id + '">' + a.name + '</button>';
+      tabs.innerHTML = live.map(function(a) {
+        return '<button style="padding:8px 14px;font-size:12px;font-weight:500;border:none;border-bottom:2px solid transparent;background:none;color:var(--color-sage-muted);cursor:pointer;white-space:nowrap;" onclick="switchAgent(\\'' + a.id + '\\')" id="tab-' + a.id + '">' + a.name + '</button>';
       }).join('');
-      tabs.innerHTML = mainTab + otherTabs;
+
+      // Default to first live agent if none selected yet
+      if (!activeAgent && live.length) switchAgent(live[0].id, false);
       connectAgentSSE();
-    } catch(e) {
+    } catch (e) {
       console.error('Failed to load agents page:', e);
-      document.getElementById('agents-dept-grid').innerHTML = '<div style="grid-column:1/-1;color:var(--color-clay);padding:20px;">Failed to load. Please log in first.</div>';
+      document.getElementById('agents-live-grid').innerHTML = '<div style="grid-column:1/-1;color:var(--color-clay);padding:20px;">Failed to load agents. ' + (e.message || '') + '</div>';
     }
   }
 
-  function switchAgent(agentId) {
+  function switchAgent(agentId, scroll) {
     activeAgent = agentId;
     document.querySelectorAll('#agentChatTabs button').forEach(function(btn) {
       btn.style.borderBottomColor = 'transparent';
@@ -2445,10 +2475,13 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
       activeTab.style.color = 'var(--color-forest-deep)';
       activeTab.style.fontWeight = '600';
     }
-    var name = activeTab ? activeTab.textContent : agentId;
+    var agent = agentsCache.find(function(a) { return a.id === agentId; });
+    var name = agent ? agent.name : agentId;
     document.getElementById('agentChatName').textContent = name;
+    document.getElementById('agentChatStatus').textContent = 'Online';
     document.getElementById('agentInput').placeholder = 'Message ' + name + '...';
-    document.getElementById('agentMessages').innerHTML = '<div class="chat-bubble chat-bubble-assistant">Switched to ' + name + '. What do you need?</div>';
+    document.getElementById('agentMessages').innerHTML = '<div class="chat-bubble chat-bubble-assistant">Chatting with ' + name + '. Go.</div>';
+    if (scroll !== false) document.getElementById('agentChatArea').scrollIntoView({ behavior: 'smooth' });
   }
 
   function connectAgentSSE() {
@@ -2464,7 +2497,7 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
         bubble.innerHTML = ev.content || '';
         document.getElementById('agentMessages').appendChild(bubble);
         document.getElementById('agentMessages').scrollTop = document.getElementById('agentMessages').scrollHeight;
-      } catch(err) { console.error('SSE parse error', err); }
+      } catch (err) { console.error('SSE parse error', err); }
     });
     agentSSE.addEventListener('processing', function(e) {
       try {
@@ -2476,6 +2509,7 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
   }
 
   async function sendAgentMessage() {
+    if (!activeAgent) return;
     var input = document.getElementById('agentInput');
     var msg = input.value.trim();
     if (!msg) return;
@@ -2488,13 +2522,11 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
     messages.scrollTop = messages.scrollHeight;
     document.getElementById('agentTyping').style.display = 'block';
     try {
-      var payload = { message: msg };
-      if (activeAgent !== 'main') payload.agentId = activeAgent;
       await fetch('/api/chat/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ message: msg, agentId: activeAgent }),
       });
     } catch (err) {
       document.getElementById('agentTyping').style.display = 'none';
@@ -2507,7 +2539,7 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
     messages.scrollTop = messages.scrollHeight;
   }
 
-  // Only load if already authenticated; also reload after login
+  // Load after auth
   fetch('/api/auth-check', { credentials: 'same-origin' })
     .then(function(r) { return r.json(); })
     .then(function(d) { if (d.authenticated) loadAgentsPage(); });

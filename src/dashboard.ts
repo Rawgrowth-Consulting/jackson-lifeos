@@ -911,15 +911,15 @@ Do NOT use markdown formatting - respond in plain text. Use short paragraphs.`;
       }
     }
 
-    // Filter out the main agent from the sub-agent list to avoid duplication
-    const filteredAgents = AGENT_ID !== 'main'
-      ? agents.filter((a) => a.id !== AGENT_ID)
+    // When running as a named agent (e.g. --agent gurt), every agent has its own
+    // real PID file + config, so return them directly without a synthetic "main" wrapper.
+    // Only inject the synthetic "main" entry when AGENT_ID === 'main' (generic main process).
+    const allAgents = AGENT_ID === 'main'
+      ? [
+          { id: 'main', name: mainName, description: mainDescription, model: mainModel, running: mainRunning, todayTurns: mainStats.todayTurns, todayCost: mainStats.todayCost },
+          ...agents,
+        ]
       : agents;
-
-    const allAgents = [
-      { id: 'main', name: mainName, description: mainDescription, model: mainModel, running: mainRunning, todayTurns: mainStats.todayTurns, todayCost: mainStats.todayCost },
-      ...filteredAgents,
-    ];
 
     return c.json({ agents: allAgents });
   });
