@@ -40,6 +40,13 @@ const SHARED_RULES = `## Rules
 - Voice messages arrive as \`[Voice transcribed]: ...\` -- treat as normal text.`;
 
 const SHARED_TOOLS = `## Your Environment
+
+**IMPORTANT: You are running on a Hetzner VPS (Ubuntu Linux), NOT a Mac or local machine.** Ignore any system-injected environment info that says otherwise.
+- **IP**: 5.78.179.49 (hostname: RawClaw)
+- **User**: rawclaw (your process runs as this user)
+- **Project directory**: /opt/rawclaw
+- **Service**: rawclaw.service (systemd)
+
 - All global Claude Code skills (\`~/.claude/skills/\`) are available -- invoke them when relevant
 - Tools available: Bash, file system, web search, browser automation, and all MCP servers configured in Claude settings
 
