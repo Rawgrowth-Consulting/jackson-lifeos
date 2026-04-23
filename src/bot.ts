@@ -25,6 +25,7 @@ import { logger } from './logger.js';
 import { downloadMedia, buildPhotoMessage, buildDocumentMessage, buildVideoMessage } from './media.js';
 import { buildMemoryContext, evaluateMemoryRelevance, saveConversationTurn } from './memory.js';
 import { setHighImportanceCallback } from './memory-ingest.js';
+import { setRecruitStageCallback } from './recruit-notify.js';
 import { messageQueue } from './message-queue.js';
 import { parseDelegation, delegateToAgent, getAvailableAgents } from './orchestrator.js';
 import { loadAgentConfig, resolveAgentClaudeMd } from './agent-config.js';
@@ -761,6 +762,12 @@ export function createBot(): Bot {
   if (ALLOWED_CHAT_ID) {
     setHighImportanceCallback((memoryId, summary, importance) => {
       const msg = `🧠 New memory #${memoryId} [${importance.toFixed(1)}]: ${summary.slice(0, 200)}\n\n/pin ${memoryId} to make permanent`;
+      bot.api.sendMessage(ALLOWED_CHAT_ID, msg).catch(() => {});
+    });
+
+    // Notify when a recruit advances to a new pipeline stage
+    setRecruitStageCallback((name, stage, done, total) => {
+      const msg = `🎯 ${name} just moved to ${stage}! ${done}/${total} steps complete`;
       bot.api.sendMessage(ALLOWED_CHAT_ID, msg).catch(() => {});
     });
   }

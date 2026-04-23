@@ -392,13 +392,13 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     if (!result.completed) return c.json({ ok: true, alreadyDone: true });
 
     // Fire notification if stage advanced
-    if (result.newStage && recruitStageCallback) {
+    if (result.newStage) {
       const steps = getRecruitSteps(recruit.id);
       const done = steps.filter((s) => s.completed).length;
       const stageLabel = RECRUIT_PIPELINE_STAGES.includes(result.newStage as any)
         ? Object.values(RECRUIT_PHASES).find((p) => p.pipelineStage === result.newStage)?.label || result.newStage
         : result.newStage;
-      recruitStageCallback(recruit.name, stageLabel, done, steps.length);
+      notifyRecruitStageChange(recruit.name, stageLabel, done, steps.length);
     }
 
     return c.json({ ok: true, newStage: result.newStage });
@@ -577,12 +577,10 @@ Do NOT use markdown formatting - respond in plain text. Use short paragraphs.`;
     if (body?.notes !== undefined) updateRecruitNotes(recruit.id, body.notes);
     if (body?.pipeline_stage && RECRUIT_PIPELINE_STAGES.includes(body.pipeline_stage as any)) {
       updateRecruitStage(recruit.id, body.pipeline_stage);
-      if (recruitStageCallback) {
-        const steps = getRecruitSteps(recruit.id);
-        const done = steps.filter((s) => s.completed).length;
-        const stageLabel = Object.values(RECRUIT_PHASES).find((p) => p.pipelineStage === body.pipeline_stage)?.label || body.pipeline_stage;
-        recruitStageCallback(recruit.name, stageLabel, done, steps.length);
-      }
+      const steps = getRecruitSteps(recruit.id);
+      const done = steps.filter((s) => s.completed).length;
+      const stageLabel = Object.values(RECRUIT_PHASES).find((p) => p.pipelineStage === body.pipeline_stage)?.label || body.pipeline_stage;
+      notifyRecruitStageChange(recruit.name, stageLabel, done, steps.length);
     }
 
     return c.json({ ok: true });
