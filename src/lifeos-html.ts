@@ -576,6 +576,8 @@ function loginSubmit(){
     if(r.ok){
       document.getElementById('login-overlay').style.display='none';
       document.getElementById('app-content').style.display='block';
+      // Notify page-specific JS to reload data now that we're authenticated
+      window.dispatchEvent(new Event('rawclaw-authenticated'));
     } else {
       document.getElementById('login-error').style.display='block';
       var inp = document.getElementById('login-password');
@@ -2373,8 +2375,8 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
   async function loadAgentsPage() {
     try {
       var results = await Promise.all([
-        fetch('/api/agents').then(function(r) { return r.json(); }),
-        fetch('/api/departments').then(function(r) { return r.json(); }),
+        fetch('/api/agents', {credentials:'same-origin'}).then(function(r) { return r.json(); }),
+        fetch('/api/departments', {credentials:'same-origin'}).then(function(r) { return r.json(); }),
       ]);
       var agents = results[0].agents || [];
       var depts = results[1].departments || [];
@@ -2491,6 +2493,7 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
       await fetch('/api/chat/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify(payload),
       });
     } catch (err) {
@@ -2504,7 +2507,11 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
     messages.scrollTop = messages.scrollHeight;
   }
 
-  loadAgentsPage();
+  // Only load if already authenticated; also reload after login
+  fetch('/api/auth-check', { credentials: 'same-origin' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.authenticated) loadAgentsPage(); });
+  window.addEventListener('rawclaw-authenticated', function() { loadAgentsPage(); });
   </script>`;
 
   return wrapPage('Agents', 'agents', body, authenticated);
