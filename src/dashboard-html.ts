@@ -366,31 +366,6 @@ export function getDashboardHtml(token: string, chatId: string): string {
   .db-query-error { color: #f87171; font-size: 12px; margin-top: 8px; }
   .db-query-info { color: #495c52; font-size: 12px; }
 
-  /* Supabase grid enhancements */
-  #sb-grid tr:nth-child(even) td { background: rgba(5,36,21,0.02); }
-  #sb-grid td.sb-clickable { cursor: pointer; transition: background var(--transition-fast); }
-  #sb-grid td.sb-clickable:hover { background: rgba(126,163,126,0.08); }
-  .sb-row-count { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 600; background: rgba(5,36,21,0.06); color: #495c52; }
-  .sb-add-row-btn {
-    background: #09321f;
-    color: #f5efe9; border: none; border-radius: var(--radius-sm);
-    padding: 9px 22px; font-size: 13px; font-weight: 600; cursor: pointer;
-    transition: all var(--transition-fast); box-shadow: 0 1px 4px rgba(9,50,31,0.2);
-  }
-  .sb-add-row-btn:hover { box-shadow: 0 2px 8px rgba(9,50,31,0.3); }
-  .sb-add-row-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .sb-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-  .sb-form-field label { display: block; font-size: 11px; color: #495c52; margin-bottom: 3px; font-weight: 500; }
-  .sb-form-field input, .sb-form-field textarea {
-    width: 100%; background: #f5efe9;
-    border: 1px solid var(--border-default); border-radius: var(--radius-sm);
-    color: #052415; padding: 8px 12px; font-size: 12px; outline: none; box-sizing: border-box;
-    transition: border-color var(--transition-fast);
-  }
-  .sb-form-field input:focus, .sb-form-field textarea:focus { border-color: rgba(126,163,126,0.5); }
-  .sb-insert-area { margin-top: 18px; }
-  .sb-insert-status { font-size: 12px; margin-top: 8px; }
-
   /* -- Life OS Navigation -- */
   .los-nav {
     position: sticky; top: 0; z-index: 50;
@@ -542,7 +517,6 @@ export function getDashboardHtml(token: string, chatId: string): string {
 <div class="db-nav-tabs" style="border-radius:10px;margin-bottom:16px">
   <button class="db-nav-tab active" onclick="switchMainTab('dashboard',this)">Dashboard</button>
   <button class="db-nav-tab" onclick="switchMainTab('database',this)">Local DB</button>
-  <button class="db-nav-tab" onclick="switchMainTab('supabase',this)">Supabase</button>
 </div>
 
 <!-- Dashboard View -->
@@ -843,7 +817,6 @@ export function getDashboardHtml(token: string, chatId: string): string {
     <span class="pill" id="tg-pill">Telegram</span>
     <span class="pill" id="wa-pill">WhatsApp</span>
     <span class="pill" id="slack-pill">Slack</span>
-    <span class="pill pill-unconfigured" id="supabase-pill">Supabase</span>
     <span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Connection status for messaging platforms and cloud sync. Green = connected, Red = disconnected, Gray = not configured.</span></span>
   </div>
 </div>
@@ -913,56 +886,6 @@ export function getDashboardHtml(token: string, chatId: string): string {
   </div>
 </div><!-- end main-tab-database -->
 
-<!-- Supabase View -->
-<div id="main-tab-supabase" style="display:none">
-  <div class="db-layout">
-    <div class="db-sidebar" id="sb-sidebar">
-      <div style="padding:8px 14px;font-size:11px;color:#495c52;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Supabase Tables</div>
-      <div id="sb-table-list"><div style="padding:8px 14px;color:#495c52;font-size:12px">Loading...</div></div>
-    </div>
-    <div>
-      <div class="db-grid-wrapper">
-        <div class="db-grid-scroll" id="sb-grid-scroll">
-          <table class="db-grid" id="sb-grid">
-            <thead id="sb-grid-head"></thead>
-            <tbody id="sb-grid-body"><tr><td style="padding:20px;color:#495c52">Select a table</td></tr></tbody>
-          </table>
-        </div>
-        <div class="db-pagination" id="sb-pagination" style="display:none">
-          <span id="sb-row-info"></span>
-          <div class="flex items-center gap-2">
-            <button class="db-page-btn" id="sb-prev-btn" onclick="sbPrevPage()">&larr; Prev</button>
-            <span id="sb-page-info"></span>
-            <button class="db-page-btn" id="sb-next-btn" onclick="sbNextPage()">Next &rarr;</button>
-          </div>
-        </div>
-      </div>
-      <!-- Add Row section -->
-      <div class="sb-insert-area" id="sb-insert-area" style="display:none">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-          <button class="sb-add-row-btn" id="sb-toggle-form-btn" onclick="sbToggleAddForm()">+ Add Row</button>
-          <span id="sb-insert-status" class="sb-insert-status"></span>
-        </div>
-        <div id="sb-add-form" style="display:none">
-          <div class="sb-form-grid" id="sb-form-fields"></div>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
-            <button class="sb-add-row-btn" id="sb-submit-row-btn" onclick="sbInsertRow()">Insert Row</button>
-            <button class="db-page-btn" onclick="sbToggleAddForm()">Cancel</button>
-          </div>
-        </div>
-      </div>
-      <!-- JSON Insert area -->
-      <div class="db-query-area" id="sb-json-area" style="display:none">
-        <textarea class="db-query-textarea" id="sb-json-input" rows="3" placeholder='{"column_name": "value", "other_col": 123}' onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sbInsertJson()}"></textarea>
-        <div class="db-query-bar">
-          <button class="db-run-btn" onclick="sbInsertJson()">Insert JSON</button>
-          <span id="sb-json-status" class="db-query-info"></span>
-        </div>
-        <div id="sb-json-error" class="db-query-error" style="display:none"></div>
-      </div>
-    </div>
-  </div>
-</div><!-- end main-tab-supabase -->
 
 </div><!-- end outer wrapper -->
 
@@ -1388,32 +1311,11 @@ async function loadHealth() {
     const slackPill = document.getElementById('slack-pill');
     slackPill.className = 'pill ' + (data.slackConnected ? 'pill-connected' : 'pill-disconnected');
 
-    // Supabase status (async, non-blocking)
-    loadSupabaseStatus();
   } catch(e) {
     drawGauge(0);
   }
 }
 
-async function loadSupabaseStatus() {
-  var pill = document.getElementById('supabase-pill');
-  try {
-    var data = await api('/api/supabase/status');
-    if (!data.enabled) {
-      pill.className = 'pill pill-unconfigured';
-      pill.textContent = 'Supabase: Not configured';
-    } else if (data.connected) {
-      pill.className = 'pill pill-connected';
-      pill.textContent = 'Supabase: Connected';
-    } else {
-      pill.className = 'pill pill-disconnected';
-      pill.textContent = 'Supabase: Connection failed';
-    }
-  } catch(e) {
-    pill.className = 'pill pill-unconfigured';
-    pill.textContent = 'Supabase: Unknown';
-  }
-}
 
 async function loadTokens() {
   try {
@@ -2464,11 +2366,9 @@ async function loginSubmit() {
 function switchMainTab(tab, btn) {
   document.getElementById('main-tab-dashboard').style.display = tab === 'dashboard' ? '' : 'none';
   document.getElementById('main-tab-database').style.display = tab === 'database' ? '' : 'none';
-  document.getElementById('main-tab-supabase').style.display = tab === 'supabase' ? '' : 'none';
   document.querySelectorAll('.db-nav-tab').forEach(function(t) { t.classList.remove('active'); });
   if (btn) btn.classList.add('active');
   if (tab === 'database' && !dbTablesLoaded) loadDbTables();
-  if (tab === 'supabase' && !sbTablesLoaded) loadSbTables();
 }
 
 // ── Database Explorer ───────────────────────────────────────────────
@@ -2960,292 +2860,8 @@ async function abortProcessing() {
   } catch(e) { console.error('Abort error', e); }
 }
 
-// ── Supabase Explorer ───────────────────────────────────────────────
-var sbTablesLoaded = false;
-var sbCurrentTable = '';
-var sbCurrentPage = 1;
-var sbTotalPages = 1;
-var sbCurrentSort = '';
-var sbCurrentOrder = 'asc';
-var sbCurrentColumns = [];
-var sbTableRowCounts = {};
-var sbAddFormVisible = false;
-
-async function loadSbTables() {
-  try {
-    var data = await api('/api/supabase/tables');
-    if (data.error) {
-      document.getElementById('sb-table-list').innerHTML = '<div style="padding:8px 14px;color:#f87171;font-size:12px">' + data.error + '</div>';
-      return;
-    }
-    var tables = data.tables || [];
-    // Fetch row counts in the background for each table
-    tables.forEach(function(t) {
-      api('/api/supabase/tables/' + encodeURIComponent(t.name) + '?page=1&limit=1').then(function(d) {
-        if (d && typeof d.rowCount === 'number') {
-          sbTableRowCounts[t.name] = d.rowCount;
-          var badge = document.getElementById('sb-count-' + t.name.replace(/[^a-zA-Z0-9_]/g, '_'));
-          if (badge) badge.textContent = d.rowCount;
-        }
-      }).catch(function(){});
-    });
-    var html = '';
-    tables.forEach(function(t) {
-      var safeId = t.name.replace(/[^a-zA-Z0-9_]/g, '_');
-      html += '<div class="db-sidebar-item' + (t.name === sbCurrentTable ? ' active' : '') + '" onclick="loadSbTable(\\''+t.name+'\\')"><span>'+t.name+'</span><span class="sb-row-count" id="sb-count-'+safeId+'">&middot;</span></div>';
-    });
-    document.getElementById('sb-table-list').innerHTML = html || '<div style="padding:8px 14px;color:#495c52;font-size:12px">No tables found</div>';
-    sbTablesLoaded = true;
-  } catch(e) {
-    document.getElementById('sb-table-list').innerHTML = '<div style="padding:8px 14px;color:#f87171;font-size:12px">Failed to connect to Supabase</div>';
-  }
-}
-
-async function loadSbTable(name, page, sort, order) {
-  sbCurrentTable = name;
-  sbCurrentPage = page || 1;
-  if (sort !== undefined) sbCurrentSort = sort;
-  if (order !== undefined) sbCurrentOrder = order;
-
-  // Highlight active table in sidebar
-  document.querySelectorAll('#sb-sidebar .db-sidebar-item').forEach(function(el) {
-    var elName = el.querySelector('span') ? el.querySelector('span').textContent.trim() : el.textContent.trim();
-    el.classList.toggle('active', elName === name);
-  });
-
-  var qs = 'page=' + sbCurrentPage + '&limit=50';
-  if (sbCurrentSort) qs += '&sort=' + sbCurrentSort + '&order=' + sbCurrentOrder;
-
-  try {
-    var data = await api('/api/supabase/tables/' + encodeURIComponent(name) + '?' + qs);
-    if (data.error) {
-      document.getElementById('sb-grid-body').innerHTML = '<tr><td style="padding:20px;color:#f87171">' + data.error + '</td></tr>';
-      return;
-    }
-
-    // Store columns for add-row form
-    var cols = data.columns || [];
-    sbCurrentColumns = cols;
-
-    // Render header
-    var headHtml = '<tr>';
-    cols.forEach(function(col) {
-      var arrow = col === sbCurrentSort ? (sbCurrentOrder === 'asc' ? ' \\u2191' : ' \\u2193') : '';
-      var sorted = col === sbCurrentSort ? ' sorted' : '';
-      headHtml += '<th class="' + sorted + '" onclick="loadSbTable(\\''+name+'\\',1,\\''+col+'\\',\\''+(col===sbCurrentSort&&sbCurrentOrder==='asc'?'desc':'asc')+'\\')">'+col+'<span class="sort-arrow">'+arrow+'</span></th>';
-    });
-    headHtml += '</tr>';
-    document.getElementById('sb-grid-head').innerHTML = headHtml;
-
-    // Render rows with clickable cells
-    var rows = data.rows || [];
-    var bodyHtml = '';
-    if (rows.length === 0) {
-      bodyHtml = '<tr><td colspan="' + Math.max(cols.length, 1) + '" style="padding:20px;color:#495c52">No rows</td></tr>';
-    } else {
-      rows.forEach(function(row, rowIdx) {
-        bodyHtml += '<tr>';
-        cols.forEach(function(col) {
-          var val = row[col];
-          if (val === null || val === undefined) {
-            bodyHtml += '<td class="null-val sb-clickable" onclick="sbShowCellDetail(\\''+col.replace(/'/g,"\\\\'")+'\\',' + rowIdx + ')">null</td>';
-          } else if (typeof val === 'object') {
-            var json = JSON.stringify(val);
-            bodyHtml += '<td class="sb-clickable" onclick="sbShowCellDetail(\\''+col.replace(/'/g,"\\\\'")+'\\',' + rowIdx + ')">' + escHtml(json.substring(0, 200)) + (json.length > 200 ? '...' : '') + '</td>';
-          } else {
-            var s = String(val);
-            var needsTrunc = s.length > 100;
-            bodyHtml += '<td class="sb-clickable" title="' + escHtml(s) + '" onclick="sbShowCellDetail(\\''+col.replace(/'/g,"\\\\'")+'\\',' + rowIdx + ')">' + escHtml(needsTrunc ? s.substring(0, 100) + '...' : s) + '</td>';
-          }
-        });
-        bodyHtml += '</tr>';
-      });
-    }
-    document.getElementById('sb-grid-body').innerHTML = bodyHtml;
-
-    // Store rows for cell detail drill-down
-    window._sbRows = rows;
-
-    // Show insert areas
-    document.getElementById('sb-insert-area').style.display = '';
-    document.getElementById('sb-json-area').style.display = '';
-
-    // Update row count badge in sidebar
-    if (typeof data.rowCount === 'number') {
-      sbTableRowCounts[name] = data.rowCount;
-      var safeId = name.replace(/[^a-zA-Z0-9_]/g, '_');
-      var badge = document.getElementById('sb-count-' + safeId);
-      if (badge) badge.textContent = data.rowCount;
-    }
-
-    // Pagination
-    sbTotalPages = data.totalPages || 1;
-    var pag = document.getElementById('sb-pagination');
-    if (data.rowCount > 0) {
-      pag.style.display = '';
-      document.getElementById('sb-row-info').textContent = data.rowCount + ' rows';
-      document.getElementById('sb-page-info').textContent = 'Page ' + sbCurrentPage + ' / ' + sbTotalPages;
-      document.getElementById('sb-prev-btn').disabled = sbCurrentPage <= 1;
-      document.getElementById('sb-next-btn').disabled = sbCurrentPage >= sbTotalPages;
-    } else {
-      pag.style.display = 'none';
-    }
-  } catch(e) {
-    document.getElementById('sb-grid-body').innerHTML = '<tr><td style="padding:20px;color:#f87171">Error: ' + e.message + '</td></tr>';
-  }
-}
-
-function sbPrevPage() { if (sbCurrentPage > 1) loadSbTable(sbCurrentTable, sbCurrentPage - 1); }
-function sbNextPage() { if (sbCurrentPage < sbTotalPages) loadSbTable(sbCurrentTable, sbCurrentPage + 1); }
-
 // Escape HTML for safe rendering
 function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-
-// Show full cell content in the drawer
-function sbShowCellDetail(col, rowIdx) {
-  var row = (window._sbRows || [])[rowIdx];
-  if (!row) return;
-  var val = row[col];
-  var display = '';
-  if (val === null || val === undefined) {
-    display = '<span style="color:#495c52;font-style:italic">null</span>';
-  } else if (typeof val === 'object') {
-    display = '<pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;color:#052415;font-family:monospace;margin:0">' + escHtml(JSON.stringify(val, null, 2)) + '</pre>';
-  } else {
-    display = '<pre style="white-space:pre-wrap;word-break:break-all;font-size:13px;color:#052415;margin:0">' + escHtml(String(val)) + '</pre>';
-  }
-  document.getElementById('drawer-title').textContent = sbCurrentTable + '.' + col;
-  document.getElementById('drawer-count').textContent = 'Row ' + (rowIdx + 1);
-  document.getElementById('drawer-avg-salience').textContent = typeof val === 'string' ? val.length + ' chars' : typeof val;
-  document.getElementById('drawer-body').innerHTML =
-    '<div style="padding:4px 0">' +
-    '<div style="font-size:11px;color:#495c52;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Full Value</div>' +
-    display +
-    '</div>' +
-    '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-subtle)">' +
-    '<div style="font-size:11px;color:#495c52;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">All Columns in This Row</div>' +
-    sbCurrentColumns.map(function(c) {
-      var v = row[c];
-      var preview = v === null || v === undefined ? 'null' : typeof v === 'object' ? JSON.stringify(v).substring(0,120) : String(v).substring(0,120);
-      return '<div style="margin-bottom:6px"><span style="color:#09321f;font-size:11px;font-weight:600">' + escHtml(c) + '</span><br><span style="color:#495c52;font-size:12px">' + escHtml(preview) + '</span></div>';
-    }).join('') +
-    '</div>';
-  document.getElementById('drawer-load-more').classList.add('hidden');
-  document.getElementById('drawer-overlay').classList.add('open');
-  document.getElementById('drawer').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-// Toggle add-row form
-function sbToggleAddForm() {
-  sbAddFormVisible = !sbAddFormVisible;
-  var form = document.getElementById('sb-add-form');
-  form.style.display = sbAddFormVisible ? '' : 'none';
-  if (sbAddFormVisible) {
-    sbBuildAddForm();
-  }
-}
-
-// Build form fields from current table columns
-function sbBuildAddForm() {
-  var container = document.getElementById('sb-form-fields');
-  if (!sbCurrentColumns.length) {
-    container.innerHTML = '<div style="color:#495c52;font-size:12px;grid-column:1/-1">Load a table first</div>';
-    return;
-  }
-  var html = '';
-  sbCurrentColumns.forEach(function(col) {
-    html += '<div class="sb-form-field"><label>' + escHtml(col) + '</label><input type="text" id="sb-field-' + col.replace(/[^a-zA-Z0-9_]/g, '_') + '" placeholder="' + escHtml(col) + '"></div>';
-  });
-  container.innerHTML = html;
-}
-
-// Insert row from the form fields
-async function sbInsertRow() {
-  if (!sbCurrentTable || !sbCurrentColumns.length) return;
-  var row = {};
-  var hasValue = false;
-  sbCurrentColumns.forEach(function(col) {
-    var input = document.getElementById('sb-field-' + col.replace(/[^a-zA-Z0-9_]/g, '_'));
-    if (input && input.value.trim() !== '') {
-      var v = input.value.trim();
-      // Try to parse numbers and booleans
-      if (v === 'true') v = true;
-      else if (v === 'false') v = false;
-      else if (v === 'null') v = null;
-      else if (!isNaN(v) && v !== '') v = Number(v);
-      row[col] = v;
-      hasValue = true;
-    }
-  });
-  if (!hasValue) {
-    document.getElementById('sb-insert-status').innerHTML = '<span style="color:#b8860b">Fill at least one field</span>';
-    return;
-  }
-  document.getElementById('sb-submit-row-btn').disabled = true;
-  document.getElementById('sb-insert-status').innerHTML = '<span style="color:#495c52">Inserting...</span>';
-  try {
-    var resp = await fetch(BASE + '/api/supabase/tables/' + encodeURIComponent(sbCurrentTable) + '', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(row)
-    });
-    var data = await resp.json();
-    if (data.error) {
-      document.getElementById('sb-insert-status').innerHTML = '<span style="color:#f87171">' + escHtml(data.error) + '</span>';
-    } else {
-      document.getElementById('sb-insert-status').innerHTML = '<span style="color:#7ea37e">Row inserted</span>';
-      sbToggleAddForm();
-      loadSbTable(sbCurrentTable, sbCurrentPage);
-    }
-  } catch(e) {
-    document.getElementById('sb-insert-status').innerHTML = '<span style="color:#f87171">' + escHtml(e.message) + '</span>';
-  }
-  document.getElementById('sb-submit-row-btn').disabled = false;
-}
-
-// Insert row from raw JSON textarea
-async function sbInsertJson() {
-  if (!sbCurrentTable) {
-    document.getElementById('sb-json-error').style.display = '';
-    document.getElementById('sb-json-error').textContent = 'Select a table first';
-    return;
-  }
-  var raw = document.getElementById('sb-json-input').value.trim();
-  if (!raw) return;
-  var parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch(e) {
-    document.getElementById('sb-json-error').style.display = '';
-    document.getElementById('sb-json-error').textContent = 'Invalid JSON: ' + e.message;
-    return;
-  }
-  document.getElementById('sb-json-error').style.display = 'none';
-  document.getElementById('sb-json-status').textContent = 'Inserting...';
-  try {
-    var resp = await fetch(BASE + '/api/supabase/tables/' + encodeURIComponent(sbCurrentTable) + '', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(parsed)
-    });
-    var data = await resp.json();
-    if (data.error) {
-      document.getElementById('sb-json-error').style.display = '';
-      document.getElementById('sb-json-error').textContent = data.error;
-      document.getElementById('sb-json-status').textContent = '';
-    } else {
-      document.getElementById('sb-json-status').innerHTML = '<span style="color:#7ea37e">Row inserted</span>';
-      document.getElementById('sb-json-input').value = '';
-      loadSbTable(sbCurrentTable, sbCurrentPage);
-      setTimeout(function() { document.getElementById('sb-json-status').textContent = ''; }, 3000);
-    }
-  } catch(e) {
-    document.getElementById('sb-json-error').style.display = '';
-    document.getElementById('sb-json-error').textContent = e.message;
-    document.getElementById('sb-json-status').textContent = '';
-  }
-}
 </script>
 
 <!-- Chat FAB -->
