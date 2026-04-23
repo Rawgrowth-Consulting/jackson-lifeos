@@ -546,7 +546,11 @@ function loginScript(): string {
 (function(){
   var overlay = document.getElementById('login-overlay');
   var appContent = document.getElementById('app-content');
-  fetch('/api/auth-check', { credentials: 'same-origin' })
+  // Pass URL token to auth-check so ?token= auto-authenticates
+  var urlParams = new URLSearchParams(window.location.search);
+  var tokenParam = urlParams.get('token');
+  var authUrl = '/api/auth-check' + (tokenParam ? '?token=' + encodeURIComponent(tokenParam) : '');
+  fetch(authUrl, { credentials: 'same-origin' })
     .then(function(r){ return r.json(); })
     .then(function(d){
       if(!d.authenticated){

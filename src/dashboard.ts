@@ -217,7 +217,8 @@ export function startDashboard(botApi?: Api<RawApi>): void {
 
   // ── Auth check endpoint (no auth required) ─────────────────────────────
   app.get('/api/auth-check', (c) => {
-    return c.json({ authenticated: isAuthenticated(c) });
+    const tokenAuth = c.req.query('token') === DASHBOARD_TOKEN;
+    return c.json({ authenticated: isAuthenticated(c) || tokenAuth });
   });
 
   // ── Auth middleware — everything below requires session cookie ──────────
@@ -237,9 +238,15 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     if (path.startsWith('/r/') || path.startsWith('/api/recruit/')) {
       return next();
     }
-    // Also support legacy ?token= in URL for backward compat (but token is NOT exposed in HTML anymore)
+    // Support ?token= in URL — auto-create session so auth-check passes
     const urlToken = c.req.query('token');
     if (urlToken && urlToken === DASHBOARD_TOKEN) {
+      // If no session cookie yet, create one so the login overlay doesn't block
+      if (!isAuthenticated(c)) {
+        const sid = generateSessionId();
+        sessions.set(sid, { authed: true, created: Date.now() });
+        c.header('Set-Cookie', `rawclaw_session=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`);
+      }
       return next();
     }
     // Check session cookie
