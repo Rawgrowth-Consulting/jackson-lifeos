@@ -42,6 +42,12 @@ for i in $(seq 1 30); do
   sleep 0.5
   URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$TUNNEL_LOG" 2>/dev/null | head -1)
   if [ -n "$URL" ]; then
+    # If DASHBOARD_URL is already set to a custom domain (not trycloudflare), leave it alone
+    EXISTING_URL=$(grep -E '^DASHBOARD_URL=' "$ENV_FILE" 2>/dev/null | cut -d= -f2)
+    if [ -n "$EXISTING_URL" ] && ! echo "$EXISTING_URL" | grep -q 'trycloudflare\.com'; then
+      echo "  Dashboard tunnel: $URL (not overwriting custom DASHBOARD_URL=$EXISTING_URL)"
+      exit 0
+    fi
     # Update DASHBOARD_URL in .env
     if grep -q '^DASHBOARD_URL=' "$ENV_FILE" 2>/dev/null; then
       sed -i.bak "s|^DASHBOARD_URL=.*|DASHBOARD_URL=$URL|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"

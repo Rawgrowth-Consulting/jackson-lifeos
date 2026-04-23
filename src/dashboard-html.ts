@@ -2750,18 +2750,28 @@ async function loadAgentTabs() {
     chatAgents = data.agents || [];
     const container = document.getElementById('chat-agent-tabs');
     container.innerHTML = '';
+
+    // "All" tab
     const allTab = document.createElement('button');
     allTab.className = 'chat-agent-tab' + (activeAgentTab === 'all' ? ' active' : '');
     allTab.textContent = 'All';
     allTab.onclick = function() { switchAgentTab('all', this); };
     container.appendChild(allTab);
+
+    // Deduplicate: if main agent name matches a sub-agent name, skip the sub-agent
+    const mainAgent = chatAgents.find(a => a.id === 'main');
+    const mainName = mainAgent ? mainAgent.name.toLowerCase() : '';
+
     chatAgents.forEach(function(a) {
+      // Skip sub-agents whose name matches the main agent (they're the same bot)
+      if (a.id !== 'main' && a.name.toLowerCase() === mainName) return;
+
       const tab = document.createElement('button');
       tab.className = 'chat-agent-tab' + (activeAgentTab === a.id ? ' active' : '');
       const dot = document.createElement('span');
       dot.className = 'agent-dot ' + (a.running ? 'live' : 'dead');
       tab.appendChild(dot);
-      tab.appendChild(document.createTextNode(a.id.charAt(0).toUpperCase() + a.id.slice(1)));
+      tab.appendChild(document.createTextNode(a.name || a.id));
       tab.onclick = function() { switchAgentTab(a.id, this); };
       container.appendChild(tab);
     });

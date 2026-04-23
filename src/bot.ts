@@ -1652,15 +1652,8 @@ async function processDashboardMessage(
     }
 
     // Emit assistant response to SSE clients
+    logger.info({ agentId, responseLen: rawResponse.length, source: 'dashboard' }, 'Emitting dashboard response');
     emitChatEvent({ type: 'assistant_message', chatId: chatIdStr, agentId, content: rawResponse, source: 'dashboard' });
-
-    // Relay to Telegram so the user sees it there too
-    const { text: responseText } = extractFileMarkers(rawResponse);
-    if (responseText) {
-      for (const part of splitMessage(formatForTelegram(responseText))) {
-        await botApi.sendMessage(parseInt(chatIdStr), part, { parse_mode: 'HTML' });
-      }
-    }
 
     // Log token usage
     if (result.usage) {
