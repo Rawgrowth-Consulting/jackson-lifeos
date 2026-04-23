@@ -49,6 +49,8 @@ import {
   getSellingDocuments,
   getSellingDocument,
   deleteSellingDocument,
+} from './db.js';
+import {
   insertRecruit,
   getRecruits,
   getStaleRecruits,
@@ -63,9 +65,12 @@ import {
   getRecruitStats,
   insertRecruitChatMessage,
   getRecruitChatMessages,
+  calculateLeadScore,
   RECRUIT_PHASES,
   RECRUIT_PIPELINE_STAGES,
-} from './db.js';
+  runRecruitingMigrations,
+  type RecruitQualification,
+} from './recruit-db.js';
 import { generateContent, parseJsonResponse } from './gemini.js';
 import { notifyRecruitStageChange } from './recruit-notify.js';
 import { getSecurityStatus } from './security.js';
@@ -135,6 +140,11 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     logger.info('DASHBOARD_TOKEN not set, dashboard disabled');
     return;
   }
+
+  // Run recruiting PostgreSQL migrations (fire-and-forget)
+  runRecruitingMigrations().catch((err) => {
+    logger.error({ err }, 'Failed to run recruiting migrations');
+  });
 
   const app = new Hono();
 
@@ -330,16 +340,19 @@ export function startDashboard(botApi?: Api<RawApi>): void {
   app.get('/join', (c) => c.html(getRecruitSignupHtml()));
 
   // Recruit dashboard (token-based access)
-  app.get('/r/:token', (c) => {
-    const recruit = getRecruitByToken(c.req.param('token'));
+  app.get('/r/:token', async (c) => {
+    const recruit = await getRecruitByToken(c.req.param('token'));
     if (!recruit) return c.html('<h1>Not found</h1><p>This link is invalid or has expired.</p>', 404);
-    const steps = getRecruitSteps(recruit.id);
+    const steps = await getRecruitSteps(recruit.id);
     return c.html(getRecruitDashboardHtml(recruit, steps));
   });
 
   // Public sign-up API
   app.post('/api/recruit/signup', async (c) => {
-    const body = await c.req.json<{ name?: string; email?: string; phone?: string; state?: string }>();
+    const body = await c.req.json<{
+      name?: string; email?: string; phone?: string; state?: string;
+      qualification?: RecruitQualification;
+    }>();
     const name = body?.name?.trim();
     const email = body?.email?.trim();
     if (!name) return c.json({ error: 'Name is required' }, 400);
@@ -349,7 +362,10 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     const accessToken = crypto.randomBytes(16).toString('hex');
     const now = Math.floor(Date.now() / 1000);
 
-    insertRecruit({
+    const qualification = body?.qualification || null;
+    const leadScore = qualification ? calculateLeadScore(qualification) : 0;
+
+    await insertRecruit({
       id,
       name,
       email,
@@ -359,6 +375,8 @@ export function startDashboard(botApi?: Api<RawApi>): void {
       access_token: accessToken,
       pipeline_stage: 'interested',
       notes: '',
+      lead_score: leadScore,
+      qualification,
       created_at: now,
       last_active_at: now,
     });
@@ -367,16 +385,16 @@ export function startDashboard(botApi?: Api<RawApi>): void {
   });
 
   // Get recruit steps (token-based)
-  app.get('/api/recruit/:token/steps', (c) => {
-    const recruit = getRecruitByToken(c.req.param('token'));
+  app.get('/api/recruit/:token/steps', async (c) => {
+    const recruit = await getRecruitByToken(c.req.param('token'));
     if (!recruit) return c.json({ error: 'Not found' }, 404);
-    const steps = getRecruitSteps(recruit.id);
+    const steps = await getRecruitSteps(recruit.id);
     return c.json({ steps, pipeline_stage: recruit.pipeline_stage });
   });
 
   // Toggle step completion (token-based)
   app.post('/api/recruit/:token/step', async (c) => {
-    const recruit = getRecruitByToken(c.req.param('token'));
+    const recruit = await getRecruitByToken(c.req.param('token'));
     if (!recruit) return c.json({ error: 'Not found' }, 404);
 
     const body = await c.req.json<{ stepKey?: string; completed?: boolean }>();
@@ -384,16 +402,16 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     if (!stepKey) return c.json({ error: 'stepKey is required' }, 400);
 
     if (body?.completed === false) {
-      uncompleteRecruitStep(recruit.id, stepKey);
+      await uncompleteRecruitStep(recruit.id, stepKey);
       return c.json({ ok: true });
     }
 
-    const result = completeRecruitStep(recruit.id, stepKey);
+    const result = await completeRecruitStep(recruit.id, stepKey);
     if (!result.completed) return c.json({ ok: true, alreadyDone: true });
 
     // Fire notification if stage advanced
     if (result.newStage) {
-      const steps = getRecruitSteps(recruit.id);
+      const steps = await getRecruitSteps(recruit.id);
       const done = steps.filter((s) => s.completed).length;
       const stageLabel = RECRUIT_PIPELINE_STAGES.includes(result.newStage as any)
         ? Object.values(RECRUIT_PHASES).find((p) => p.pipelineStage === result.newStage)?.label || result.newStage
@@ -406,7 +424,7 @@ export function startDashboard(botApi?: Api<RawApi>): void {
 
   // AI chat - send message (token-based)
   app.post('/api/recruit/:token/chat', async (c) => {
-    const recruit = getRecruitByToken(c.req.param('token'));
+    const recruit = await getRecruitByToken(c.req.param('token'));
     if (!recruit) return c.json({ error: 'Not found' }, 404);
 
     const body = await c.req.json<{ message?: string }>();
@@ -414,11 +432,11 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     if (!message) return c.json({ error: 'message is required' }, 400);
 
     const now = Math.floor(Date.now() / 1000);
-    insertRecruitChatMessage({ recruit_id: recruit.id, role: 'user', content: message, created_at: now });
+    await insertRecruitChatMessage({ recruit_id: recruit.id, role: 'user', content: message, created_at: now });
 
     // Build context
-    const history = getRecruitChatMessages(recruit.id, 20);
-    const steps = getRecruitSteps(recruit.id);
+    const history = await getRecruitChatMessages(recruit.id, 20);
+    const steps = await getRecruitSteps(recruit.id);
     const completedSteps = steps.filter((s) => s.completed).map((s) => s.step_key);
     const systemPrompt = `You are a helpful, encouraging assistant that helps people get their life insurance license. You're part of Family First Life's recruiting team, working with Jackson.
 
@@ -499,7 +517,7 @@ Do NOT use markdown formatting - respond in plain text. Use short paragraphs.`;
     try {
       const reply = await generateContent(fullPrompt, 'gemini-2.5-flash-preview-05-20', { temperature: 0.7, responseMimeType: 'text/plain' });
       const cleanReply = reply.replace(/^```[\s\S]*?```$/gm, '').replace(/^"|"$/g, '').trim() || "I'm sorry, I couldn't generate a response. Please try again.";
-      insertRecruitChatMessage({ recruit_id: recruit.id, role: 'assistant', content: cleanReply, created_at: Math.floor(Date.now() / 1000) });
+      await insertRecruitChatMessage({ recruit_id: recruit.id, role: 'assistant', content: cleanReply, created_at: Math.floor(Date.now() / 1000) });
       return c.json({ reply: cleanReply });
     } catch (err) {
       logger.error({ err }, 'Recruit chat error');
@@ -508,32 +526,32 @@ Do NOT use markdown formatting - respond in plain text. Use short paragraphs.`;
   });
 
   // Chat history (token-based)
-  app.get('/api/recruit/:token/chat/history', (c) => {
-    const recruit = getRecruitByToken(c.req.param('token'));
+  app.get('/api/recruit/:token/chat/history', async (c) => {
+    const recruit = await getRecruitByToken(c.req.param('token'));
     if (!recruit) return c.json({ error: 'Not found' }, 404);
-    const messages = getRecruitChatMessages(recruit.id);
+    const messages = await getRecruitChatMessages(recruit.id);
     return c.json({ messages });
   });
 
   // ── Recruiting: Admin API (session-authenticated) ──────────────────
 
   // List all recruits
-  app.get('/api/recruiting/recruits', (c) => {
+  app.get('/api/recruiting/recruits', async (c) => {
     const stage = c.req.query('stage') || undefined;
     const staleDays = c.req.query('stale');
     if (staleDays) {
-      const recruits = getStaleRecruits(parseInt(staleDays, 10) || 7);
+      const recruits = await getStaleRecruits(parseInt(staleDays, 10) || 7);
       return c.json({ recruits });
     }
-    const recruits = getRecruits(stage);
+    const recruits = await getRecruits(stage);
     return c.json({ recruits });
   });
 
   // Get single recruit detail
-  app.get('/api/recruiting/recruits/:id', (c) => {
-    const recruit = getRecruit(c.req.param('id'));
+  app.get('/api/recruiting/recruits/:id', async (c) => {
+    const recruit = await getRecruit(c.req.param('id'));
     if (!recruit) return c.json({ error: 'Not found' }, 404);
-    const steps = getRecruitSteps(recruit.id);
+    const steps = await getRecruitSteps(recruit.id);
     return c.json({ recruit, steps });
   });
 
@@ -547,7 +565,7 @@ Do NOT use markdown formatting - respond in plain text. Use short paragraphs.`;
     const accessToken = crypto.randomBytes(16).toString('hex');
     const now = Math.floor(Date.now() / 1000);
 
-    insertRecruit({
+    await insertRecruit({
       id,
       name,
       email: body?.email?.trim() || '',
@@ -557,6 +575,8 @@ Do NOT use markdown formatting - respond in plain text. Use short paragraphs.`;
       access_token: accessToken,
       pipeline_stage: 'interested',
       notes: body?.notes?.trim() || '',
+      lead_score: 0,
+      qualification: null,
       created_at: now,
       last_active_at: now,
     });
@@ -566,14 +586,14 @@ Do NOT use markdown formatting - respond in plain text. Use short paragraphs.`;
 
   // Update recruit (notes, stage)
   app.patch('/api/recruiting/recruits/:id', async (c) => {
-    const recruit = getRecruit(c.req.param('id'));
+    const recruit = await getRecruit(c.req.param('id'));
     if (!recruit) return c.json({ error: 'Not found' }, 404);
 
     const body = await c.req.json<{ notes?: string; pipeline_stage?: string }>();
-    if (body?.notes !== undefined) updateRecruitNotes(recruit.id, body.notes);
+    if (body?.notes !== undefined) await updateRecruitNotes(recruit.id, body.notes);
     if (body?.pipeline_stage && RECRUIT_PIPELINE_STAGES.includes(body.pipeline_stage as any)) {
-      updateRecruitStage(recruit.id, body.pipeline_stage);
-      const steps = getRecruitSteps(recruit.id);
+      await updateRecruitStage(recruit.id, body.pipeline_stage);
+      const steps = await getRecruitSteps(recruit.id);
       const done = steps.filter((s) => s.completed).length;
       const stageLabel = Object.values(RECRUIT_PHASES).find((p) => p.pipelineStage === body.pipeline_stage)?.label || body.pipeline_stage;
       notifyRecruitStageChange(recruit.name, stageLabel, done, steps.length);
@@ -583,15 +603,15 @@ Do NOT use markdown formatting - respond in plain text. Use short paragraphs.`;
   });
 
   // Delete recruit
-  app.delete('/api/recruiting/recruits/:id', (c) => {
-    const ok = deleteRecruit(c.req.param('id'));
+  app.delete('/api/recruiting/recruits/:id', async (c) => {
+    const ok = await deleteRecruit(c.req.param('id'));
     if (!ok) return c.json({ error: 'Not found' }, 404);
     return c.json({ ok: true });
   });
 
   // Recruiting stats
-  app.get('/api/recruiting/stats', (c) => {
-    const stats = getRecruitStats();
+  app.get('/api/recruiting/stats', async (c) => {
+    const stats = await getRecruitStats();
     return c.json(stats);
   });
 

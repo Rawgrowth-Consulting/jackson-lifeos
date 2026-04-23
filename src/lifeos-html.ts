@@ -1,7 +1,7 @@
 // Life OS Dashboard — HTML template functions
 // Uses the Jackson SAAS design system: cream/forest/sage light palette
 
-import { RECRUIT_PHASES, type Recruit, type RecruitStep } from './db.js';
+import { RECRUIT_PHASES, type Recruit, type RecruitStep } from './recruit-db.js';
 
 // ─── Shared CSS & Layout ───────────────────────────────────────────────────────
 
@@ -841,7 +841,49 @@ export function getLifeOSSellingHtml(authenticated = false): string {
 
   <div class="animate-lift-in">
     <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Selling</h1>
-    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 28px;">Log into your carriers and upload statements to track everything in one place.</p>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Commissions, carriers, policies, and projections.</p>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="summary-bar animate-lift-in delay-1">
+    <div class="summary-stat">
+      <div class="summary-stat-val" style="color:var(--color-sage);">$24,300</div>
+      <div class="summary-stat-label">MTD Commissions</div>
+    </div>
+    <div class="summary-stat">
+      <div class="summary-stat-val" style="color:var(--color-clay);">$2,450</div>
+      <div class="summary-stat-label">MTD Chargebacks</div>
+    </div>
+    <div class="summary-stat">
+      <div class="summary-stat-val">73%</div>
+      <div class="summary-stat-label">90d Persistency</div>
+    </div>
+    <div class="summary-stat">
+      <div class="summary-stat-val" style="color:var(--color-forest);">$81,200</div>
+      <div class="summary-stat-label">3mo Forecast</div>
+    </div>
+  </div>
+
+  <!-- Chargeback Liability -->
+  <div class="card animate-lift-in delay-2" style="margin-bottom:24px;background:var(--color-forest-deep);border-color:var(--color-forest-deep);">
+    <div class="summary-stat-label" style="margin-bottom:8px;color:rgba(245,239,233,0.6);">Chargeback Liability</div>
+    <div style="font-size:42px;font-weight:500;color:var(--color-cream);letter-spacing:-0.03em;font-family:'Lora',Georgia,serif;font-variant-numeric:tabular-nums;">$46,780</div>
+    <p style="font-size:12px;color:rgba(245,239,233,0.5);margin:8px 0 0;">Outstanding liability from policies in chargeback window</p>
+  </div>
+
+  <!-- Per Carrier Breakdown -->
+  <div class="section-title animate-lift-in delay-3">Per Carrier Breakdown</div>
+  <div class="card animate-lift-in delay-3" style="padding:0;overflow:hidden;">
+    <table class="los-table">
+      <thead>
+        <tr><th>Carrier</th><th>MTD Amount</th><th>Persistency</th></tr>
+      </thead>
+      <tbody>
+        <tr><td style="font-weight:600;">Mutual of Omaha</td><td style="color:var(--color-sage);font-weight:500;">$11,820</td><td>76%</td></tr>
+        <tr><td style="font-weight:600;">Aetna</td><td style="color:var(--color-sage);font-weight:500;">$7,640</td><td>71%</td></tr>
+        <tr><td style="font-weight:600;">Americo</td><td style="color:var(--color-sage);font-weight:500;">$4,840</td><td>68%</td></tr>
+      </tbody>
+    </table>
   </div>
 
   <!-- Carrier Links -->
@@ -1061,6 +1103,10 @@ export function getLifeOSRecruitingHtml(authenticated = false): string {
     .stale-badge { font-size: 10px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: rgba(208,119,101,0.15); color: var(--color-clay); }
     .mini-progress { width: 100%; height: 4px; background: var(--color-stone-50); border-radius: 2px; margin-top: 6px; }
     .mini-progress-fill { height: 100%; border-radius: 2px; background: var(--color-sage); transition: width 0.3s ease; }
+    .score-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+    .score-hot { background: rgba(126,163,126,0.2); color: #2d6a2d; }
+    .score-warm { background: rgba(217,174,98,0.2); color: #8a6d1e; }
+    .score-cold { background: rgba(208,119,101,0.15); color: var(--color-clay); }
     @media (max-width: 1200px) { .kanban { grid-template-columns: repeat(4, 1fr); } }
     @media (max-width: 768px) { .kanban { grid-template-columns: repeat(2, 1fr); } }
 
@@ -1220,8 +1266,13 @@ export function getLifeOSRecruitingHtml(authenticated = false): string {
           const card = document.createElement('div');
           card.className = 'kanban-card';
           card.onclick = () => showDetail(r.id);
+          const scoreClass = r.lead_score >= 7 ? 'score-hot' : r.lead_score >= 4 ? 'score-warm' : 'score-cold';
+          const scoreLabel = r.lead_score >= 7 ? 'Hot' : r.lead_score >= 4 ? 'Warm' : 'Cold';
           card.innerHTML = \`
-            <div class="kanban-card-name">\${esc(r.name)}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div class="kanban-card-name">\${esc(r.name)}</div>
+              \${r.lead_score > 0 ? '<span class="score-badge ' + scoreClass + '">' + r.lead_score + '/10</span>' : ''}
+            </div>
             <div class="kanban-card-detail">\${esc(r.phone || r.email || '')}</div>
             <div class="kanban-card-meta">
               <span class="source-badge source-\${r.source}">\${esc(r.source)}</span>
@@ -1274,6 +1325,24 @@ export function getLifeOSRecruitingHtml(authenticated = false): string {
           <div><span class="label">State</span><br>\${esc(r.state || '—')}</div>
           <div><span class="label">Source</span><br>\${esc(r.source)}</div>
         </div>
+        \${r.lead_score > 0 ? \`
+        <div style="margin-bottom:16px;padding:16px;background:var(--color-cream-soft);border-radius:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span class="label">Lead Score</span>
+            <span style="font-size:20px;font-weight:700;font-family:'Lora',Georgia,serif;color:\${r.lead_score >= 7 ? '#2d6a2d' : r.lead_score >= 4 ? '#8a6d1e' : 'var(--color-clay)'};">\${r.lead_score}/10</span>
+          </div>
+          \${r.qualification ? \`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+            <div><span style="color:var(--color-sage-muted);">Sales Exp:</span> \${esc(r.qualification.sales_experience || '—')}</div>
+            <div><span style="color:var(--color-sage-muted);">Years:</span> \${esc(r.qualification.sales_years || '—')}</div>
+            <div><span style="color:var(--color-sage-muted);">Hours/wk:</span> \${esc((r.qualification.hours_per_week || '').replace(/_/g, ' '))}</div>
+            <div><span style="color:var(--color-sage-muted);">Runway:</span> \${esc((r.qualification.financial_runway || '').replace(/_/g, ' '))}</div>
+            <div><span style="color:var(--color-sage-muted);">Coachable:</span> \${esc(r.qualification.coachability || '—')}</div>
+            <div><span style="color:var(--color-sage-muted);">Start:</span> \${esc((r.qualification.start_timeline || '').replace(/_/g, ' '))}</div>
+            <div><span style="color:var(--color-sage-muted);">Income Goal:</span> \${esc(r.qualification.income_goal || '—')}</div>
+          </div>
+          \${r.qualification.why_insurance ? '<div style="margin-top:8px;font-size:12px;"><span style="color:var(--color-sage-muted);">Why insurance:</span> ' + esc(r.qualification.why_insurance) + '</div>' : ''}
+          \` : ''}
+        </div>\` : ''}
         \${dashLink ? '<div style="margin-bottom:16px;"><span class="label">Dashboard Link</span><br><a href="'+esc(dashLink)+'" target="_blank" style="color:var(--color-forest);font-size:12px;word-break:break-all;">'+esc(dashLink)+'</a></div>' : ''}
         <div style="margin-bottom:16px;">
           <span class="label">Stage</span>
@@ -1373,7 +1442,7 @@ ${sharedStyles()}
 .signup-card {
   background: var(--color-paper);
   border: 1px solid var(--color-stone-50); border-radius: 24px;
-  padding: 48px; width: 480px; max-width: 100%;
+  padding: 48px; width: 560px; max-width: 100%;
   box-shadow: 0 8px 40px rgba(5,36,21,0.08);
 }
 .signup-logo {
@@ -1394,36 +1463,216 @@ ${sharedStyles()}
   font-size: 24px; color: var(--color-forest-deep);
   margin: 0 0 12px;
 }
+.step-indicator {
+  display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 28px;
+}
+.step-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--color-stone-50); transition: all 0.3s ease;
+}
+.step-dot.active { background: var(--color-forest); width: 28px; border-radius: 5px; }
+.step-dot.done { background: var(--color-sage); }
+.form-step { display: none; flex-direction: column; gap: 16px; }
+.form-step.active { display: flex; }
+.step-title {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 18px; font-weight: 500; color: var(--color-forest-deep);
+  margin-bottom: 4px;
+}
+.step-desc { font-size: 13px; color: var(--color-sage-muted); margin-bottom: 8px; }
+.option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.option-card {
+  border: 2px solid var(--color-stone-50); border-radius: 12px;
+  padding: 14px 16px; cursor: pointer; transition: all var(--transition-fast);
+  text-align: center; font-size: 13px; font-weight: 500; color: var(--color-forest-deep);
+}
+.option-card:hover { border-color: var(--color-stone-100); background: rgba(5,36,21,0.02); }
+.option-card.selected { border-color: var(--color-forest); background: rgba(9,50,31,0.06); color: var(--color-forest); }
+.option-card-label { font-weight: 600; margin-bottom: 2px; }
+.option-card-desc { font-size: 11px; color: var(--color-sage-muted); font-weight: 400; }
+.btn-row { display: flex; gap: 10px; margin-top: 8px; }
+.btn-row .los-btn, .btn-row .los-btn-outline { flex: 1; padding: 14px; text-align: center; }
+@media (max-width: 480px) {
+  .option-grid { grid-template-columns: 1fr; }
+  .signup-card { padding: 32px 20px; }
+}
 </style>
 </head>
 <body>
 <div class="signup-page">
   <div class="signup-card animate-lift-in">
     <div class="signup-logo">Life OS</div>
-    <div class="signup-subtitle">Start your journey to getting licensed. Fill out the form below to get started.</div>
-    <form id="signupForm" style="display:flex;flex-direction:column;gap:16px;">
+    <div class="signup-subtitle">Start your journey to getting licensed. Tell us a bit about yourself.</div>
+
+    <div class="step-indicator">
+      <div class="step-dot active" id="dot0"></div>
+      <div class="step-dot" id="dot1"></div>
+      <div class="step-dot" id="dot2"></div>
+    </div>
+
+    <!-- Step 1: Basic Info -->
+    <div class="form-step active" id="step0">
+      <div class="step-title">Your Information</div>
+      <div class="step-desc">Let's start with the basics.</div>
       <div>
         <label class="label" style="display:block;margin-bottom:6px;">Full Name *</label>
-        <input type="text" class="los-input" name="name" placeholder="Your full name" required>
+        <input type="text" class="los-input" id="f_name" placeholder="Your full name" required>
       </div>
       <div>
         <label class="label" style="display:block;margin-bottom:6px;">Email *</label>
-        <input type="email" class="los-input" name="email" placeholder="your.email@example.com" required>
+        <input type="email" class="los-input" id="f_email" placeholder="your.email@example.com" required>
       </div>
       <div>
         <label class="label" style="display:block;margin-bottom:6px;">Phone</label>
-        <input type="tel" class="los-input" name="phone" placeholder="(555) 000-0000">
+        <input type="tel" class="los-input" id="f_phone" placeholder="(555) 000-0000">
       </div>
       <div>
         <label class="label" style="display:block;margin-bottom:6px;">State</label>
-        <select class="los-select" name="state">
+        <select class="los-select" id="f_state">
           <option value="">Select your state...</option>
           ${US_STATES.map(s => `<option value="${s}">${s}</option>`).join('\n          ')}
         </select>
       </div>
-      <button type="submit" class="los-btn" style="width:100%;margin-top:8px;padding:14px;" id="submitBtn">Get Started</button>
+      <button class="los-btn" style="width:100%;padding:14px;" onclick="goStep(1)">Next</button>
+    </div>
+
+    <!-- Step 2: Experience & Motivation -->
+    <div class="form-step" id="step1">
+      <div class="step-title">Your Background</div>
+      <div class="step-desc">This helps us tailor your onboarding experience.</div>
+
+      <div>
+        <label class="label" style="display:block;margin-bottom:8px;">Do you have sales experience?</label>
+        <div class="option-grid" data-field="sales_experience">
+          <div class="option-card" data-value="none" onclick="selectOption(this)">
+            <div class="option-card-label">No experience</div>
+            <div class="option-card-desc">I'm brand new to sales</div>
+          </div>
+          <div class="option-card" data-value="some" onclick="selectOption(this)">
+            <div class="option-card-label">Some experience</div>
+            <div class="option-card-desc">I've done some selling</div>
+          </div>
+          <div class="option-card" data-value="strong" onclick="selectOption(this)">
+            <div class="option-card-label">Strong background</div>
+            <div class="option-card-desc">Sales is my career</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="label" style="display:block;margin-bottom:8px;">Years in sales</label>
+        <div class="option-grid" data-field="sales_years">
+          <div class="option-card" data-value="0" onclick="selectOption(this)">0 years</div>
+          <div class="option-card" data-value="1-2" onclick="selectOption(this)">1-2 years</div>
+          <div class="option-card" data-value="3-5" onclick="selectOption(this)">3-5 years</div>
+          <div class="option-card" data-value="5+" onclick="selectOption(this)">5+ years</div>
+        </div>
+      </div>
+
+      <div>
+        <label class="label" style="display:block;margin-bottom:6px;">Why do you want to get into life insurance?</label>
+        <textarea class="los-input" id="f_why_insurance" rows="3" placeholder="What drew you to this opportunity?" style="resize:vertical;"></textarea>
+      </div>
+
+      <div>
+        <label class="label" style="display:block;margin-bottom:8px;">First-year income goal</label>
+        <div class="option-grid" data-field="income_goal">
+          <div class="option-card" data-value="50k" onclick="selectOption(this)">$50k</div>
+          <div class="option-card" data-value="75k" onclick="selectOption(this)">$75k</div>
+          <div class="option-card" data-value="100k" onclick="selectOption(this)">$100k</div>
+          <div class="option-card" data-value="150k+" onclick="selectOption(this)">$150k+</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="los-btn-outline" onclick="goStep(0)">Back</button>
+        <button class="los-btn" onclick="goStep(2)">Next</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Commitment & Readiness -->
+    <div class="form-step" id="step2">
+      <div class="step-title">Your Readiness</div>
+      <div class="step-desc">Almost done — just a few more questions.</div>
+
+      <div>
+        <label class="label" style="display:block;margin-bottom:8px;">Hours per week you can commit</label>
+        <div class="option-grid" data-field="hours_per_week">
+          <div class="option-card" data-value="part_10" onclick="selectOption(this)">
+            <div class="option-card-label">10 hrs/wk</div>
+            <div class="option-card-desc">Part time</div>
+          </div>
+          <div class="option-card" data-value="part_20" onclick="selectOption(this)">
+            <div class="option-card-label">20 hrs/wk</div>
+            <div class="option-card-desc">Part time</div>
+          </div>
+          <div class="option-card" data-value="full_30" onclick="selectOption(this)">
+            <div class="option-card-label">30 hrs/wk</div>
+            <div class="option-card-desc">Near full time</div>
+          </div>
+          <div class="option-card" data-value="full_40+" onclick="selectOption(this)">
+            <div class="option-card-label">40+ hrs/wk</div>
+            <div class="option-card-desc">Full time</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="label" style="display:block;margin-bottom:8px;">Financial runway during ramp-up</label>
+        <div class="option-grid" data-field="financial_runway">
+          <div class="option-card" data-value="none" onclick="selectOption(this)">
+            <div class="option-card-label">No savings</div>
+            <div class="option-card-desc">Need income fast</div>
+          </div>
+          <div class="option-card" data-value="1_month" onclick="selectOption(this)">
+            <div class="option-card-label">1 month</div>
+            <div class="option-card-desc">Some buffer</div>
+          </div>
+          <div class="option-card" data-value="3_months" onclick="selectOption(this)">
+            <div class="option-card-label">3 months</div>
+            <div class="option-card-desc">Comfortable</div>
+          </div>
+          <div class="option-card" data-value="6_months+" onclick="selectOption(this)">
+            <div class="option-card-label">6+ months</div>
+            <div class="option-card-desc">Well prepared</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="label" style="display:block;margin-bottom:8px;">How coachable are you?</label>
+        <div class="option-grid" data-field="coachability">
+          <div class="option-card" data-value="low" onclick="selectOption(this)">
+            <div class="option-card-label">I prefer my own way</div>
+          </div>
+          <div class="option-card" data-value="medium" onclick="selectOption(this)">
+            <div class="option-card-label">Open to feedback</div>
+          </div>
+          <div class="option-card" data-value="high" onclick="selectOption(this)">
+            <div class="option-card-label">Extremely coachable</div>
+            <div class="option-card-desc">Ready to learn everything</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="label" style="display:block;margin-bottom:8px;">When can you start?</label>
+        <div class="option-grid" data-field="start_timeline">
+          <div class="option-card" data-value="asap" onclick="selectOption(this)">ASAP</div>
+          <div class="option-card" data-value="2_weeks" onclick="selectOption(this)">In 2 weeks</div>
+          <div class="option-card" data-value="1_month" onclick="selectOption(this)">In a month</div>
+          <div class="option-card" data-value="not_sure" onclick="selectOption(this)">Not sure yet</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="los-btn-outline" onclick="goStep(1)">Back</button>
+        <button class="los-btn" id="submitBtn" onclick="submitForm()">Submit Application</button>
+      </div>
       <div id="signupError" style="display:none;color:var(--color-clay);font-size:13px;text-align:center;"></div>
-    </form>
+    </div>
+
+    <!-- Success -->
     <div class="signup-success" id="successView">
       <h2>Welcome to the team!</h2>
       <p style="color:var(--color-sage-muted);margin-bottom:24px;">Your account has been created. Click below to access your licensing dashboard.</p>
@@ -1432,16 +1681,57 @@ ${sharedStyles()}
   </div>
 </div>
 <script>
-document.getElementById('signupForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
+let currentStep = 0;
+const qualData = {};
+
+function selectOption(el) {
+  const grid = el.parentElement;
+  grid.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  const field = grid.dataset.field;
+  qualData[field] = el.dataset.value;
+}
+
+function goStep(step) {
+  // Validate step 0
+  if (step > 0 && currentStep === 0) {
+    if (!document.getElementById('f_name').value.trim()) { document.getElementById('f_name').focus(); return; }
+    if (!document.getElementById('f_email').value.trim()) { document.getElementById('f_email').focus(); return; }
+  }
+  document.getElementById('step' + currentStep).classList.remove('active');
+  document.getElementById('step' + step).classList.add('active');
+  // Update dots
+  for (let i = 0; i <= 2; i++) {
+    const dot = document.getElementById('dot' + i);
+    dot.className = 'step-dot' + (i === step ? ' active' : (i < step ? ' done' : ''));
+  }
+  currentStep = step;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function submitForm() {
   const btn = document.getElementById('submitBtn');
   btn.textContent = 'Creating account...';
   btn.disabled = true;
   const errEl = document.getElementById('signupError');
   errEl.style.display = 'none';
 
-  const fd = new FormData(e.target);
-  const data = Object.fromEntries(fd.entries());
+  const data = {
+    name: document.getElementById('f_name').value.trim(),
+    email: document.getElementById('f_email').value.trim(),
+    phone: document.getElementById('f_phone').value.trim(),
+    state: document.getElementById('f_state').value,
+    qualification: {
+      sales_experience: qualData.sales_experience || 'none',
+      sales_years: qualData.sales_years || '0',
+      why_insurance: document.getElementById('f_why_insurance').value.trim(),
+      income_goal: qualData.income_goal || '50k',
+      hours_per_week: qualData.hours_per_week || 'part_10',
+      financial_runway: qualData.financial_runway || 'none',
+      coachability: qualData.coachability || 'medium',
+      start_timeline: qualData.start_timeline || 'not_sure',
+    },
+  };
 
   try {
     const res = await fetch('/api/recruit/signup', {
@@ -1451,23 +1741,25 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
     });
     const json = await res.json();
     if (json.ok && json.token) {
-      document.getElementById('signupForm').style.display = 'none';
+      document.querySelectorAll('.form-step').forEach(s => s.classList.remove('active'));
+      document.querySelector('.step-indicator').style.display = 'none';
+      document.querySelector('.signup-subtitle').style.display = 'none';
       const successView = document.getElementById('successView');
       successView.style.display = 'block';
       document.getElementById('dashboardLink').href = '/r/' + json.token;
     } else {
       errEl.textContent = json.error || 'Something went wrong. Please try again.';
       errEl.style.display = 'block';
-      btn.textContent = 'Get Started';
+      btn.textContent = 'Submit Application';
       btn.disabled = false;
     }
   } catch {
     errEl.textContent = 'Network error. Please try again.';
     errEl.style.display = 'block';
-    btn.textContent = 'Get Started';
+    btn.textContent = 'Submit Application';
     btn.disabled = false;
   }
-});
+}
 <\/script>
 </body>
 </html>`;
