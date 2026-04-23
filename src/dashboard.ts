@@ -221,6 +221,17 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     return c.json({ authenticated: isAuthenticated(c) || tokenAuth });
   });
 
+  // ── Auto-session: if ?token= matches, create a session cookie so the user stays logged in
+  app.use('*', async (c, next) => {
+    const urlToken = c.req.query('token');
+    if (urlToken && urlToken === DASHBOARD_TOKEN && !isAuthenticated(c)) {
+      const sid = generateSessionId();
+      sessions.set(sid, { authed: true, created: Date.now() });
+      c.header('Set-Cookie', `rawclaw_session=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`);
+    }
+    await next();
+  });
+
   // ── Auth middleware — everything below requires session cookie ──────────
   // Allow: /health (no auth), /api/login, /api/logout, /api/auth-check, GET / (serves login page)
   app.use('*', async (c, next) => {
@@ -238,15 +249,9 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     if (path.startsWith('/r/') || path.startsWith('/api/recruit/')) {
       return next();
     }
-    // Support ?token= in URL — auto-create session so auth-check passes
+    // Support ?token= in URL (session cookie already set by auto-session middleware above)
     const urlToken = c.req.query('token');
     if (urlToken && urlToken === DASHBOARD_TOKEN) {
-      // If no session cookie yet, create one so the login overlay doesn't block
-      if (!isAuthenticated(c)) {
-        const sid = generateSessionId();
-        sessions.set(sid, { authed: true, created: Date.now() });
-        c.header('Set-Cookie', `rawclaw_session=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`);
-      }
       return next();
     }
     // Check session cookie
