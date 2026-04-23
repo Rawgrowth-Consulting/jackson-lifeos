@@ -523,6 +523,67 @@ function chatBubbleScript(): string {
   </script>`;
 }
 
+function loginOverlayHtml(): string {
+  return `
+<div id="login-overlay" style="display:flex; position:fixed; inset:0; z-index:9999; background:var(--color-cream); align-items:center; justify-content:center; flex-direction:column;">
+  <div style="width:100%;max-width:360px;padding:0 24px;text-align:center;">
+    <div style="font-family:'Lora',Georgia,serif;font-size:28px;font-weight:500;font-style:italic;color:var(--color-forest-deep);margin-bottom:6px;">Life OS</div>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 32px;">Sign in to continue</p>
+    <input id="login-password" type="password" placeholder="Password" autofocus
+      class="los-input" style="text-align:center;font-size:15px;padding:14px 18px;border-radius:999px;margin-bottom:14px;"
+      onkeydown="if(event.key==='Enter')loginSubmit()">
+    <button onclick="loginSubmit()" class="los-btn" style="width:100%;padding:14px 24px;font-size:15px;">Sign in</button>
+    <div id="login-error" style="color:var(--color-clay);font-size:13px;text-align:center;margin-top:14px;display:none;">Invalid password</div>
+  </div>
+</div>`;
+}
+
+function loginScript(): string {
+  return `
+<script>
+(function(){
+  var overlay = document.getElementById('login-overlay');
+  var appContent = document.getElementById('app-content');
+  fetch('/api/auth-check', { credentials: 'same-origin' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.authenticated){
+        overlay.style.display='none';
+        appContent.style.display='block';
+      } else {
+        overlay.style.display='flex';
+        appContent.style.display='none';
+        var inp = document.getElementById('login-password');
+        if(inp) inp.focus();
+      }
+    })
+    .catch(function(){
+      overlay.style.display='flex';
+      appContent.style.display='none';
+    });
+})();
+function loginSubmit(){
+  var pw = document.getElementById('login-password').value;
+  fetch('/api/login', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    credentials:'same-origin',
+    body: JSON.stringify({password:pw})
+  }).then(function(r){
+    if(r.ok){
+      document.getElementById('login-overlay').style.display='none';
+      document.getElementById('app-content').style.display='block';
+    } else {
+      document.getElementById('login-error').style.display='block';
+      var inp = document.getElementById('login-password');
+      inp.value='';
+      inp.focus();
+    }
+  });
+}
+<\/script>`;
+}
+
 function wrapPage(title: string, activePage: string, body: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -539,12 +600,16 @@ ${sharedStyles()}
 </style>
 </head>
 <body>
+${loginOverlayHtml()}
+<div id="app-content" style="display:none;">
 ${navHtml(activePage)}
 <main class="los-container">
 ${body}
 </main>
 ${chatBubbleHtml()}
 ${chatBubbleScript()}
+</div>
+${loginScript()}
 </body>
 </html>`;
 }
