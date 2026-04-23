@@ -1,6 +1,8 @@
 // Life OS Dashboard — HTML template functions
 // Uses the Jackson SAAS design system: cream/forest/sage light palette
 
+import { RECRUIT_PHASES, type Recruit, type RecruitStep } from './db.js';
+
 // ─── Shared CSS & Layout ───────────────────────────────────────────────────────
 
 function sharedStyles(): string {
@@ -1472,8 +1474,6 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
 }
 
 // ─── Recruit Dashboard (/r/:token) ─────────────────────────────────────────────
-
-import { RECRUIT_PHASES, type Recruit, type RecruitStep } from './db.js';
 
 export function getRecruitDashboardHtml(recruit: Recruit, steps: RecruitStep[]): string {
   const completedKeys = new Set(steps.filter(s => s.completed).map(s => s.step_key));

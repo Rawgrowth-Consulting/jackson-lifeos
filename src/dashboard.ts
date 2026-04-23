@@ -420,10 +420,6 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     const history = getRecruitChatMessages(recruit.id, 20);
     const steps = getRecruitSteps(recruit.id);
     const completedSteps = steps.filter((s) => s.completed).map((s) => s.step_key);
-    const allStepLabels = Object.values(RECRUIT_PHASES).flatMap((p) =>
-      p.steps.map((s) => `${completedSteps.includes(s.key) ? '[x]' : '[ ]'} ${s.label}`),
-    );
-
     const systemPrompt = `You are a helpful, encouraging assistant that helps people get their life insurance license. You're part of Family First Life's recruiting team, working with Jackson.
 
 The recruit's name is ${recruit.name}. They are in ${recruit.state || 'an unspecified state'}.
