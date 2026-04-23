@@ -452,6 +452,30 @@ function chatBubbleScript(): string {
   return `
   <script>
   var chatPanelSSE = null;
+  var chatPanelHistories = {}; // { agentId: [{ role, content }] }
+
+  function cp_pushHistory(agentId, role, content) {
+    if (!chatPanelHistories[agentId]) chatPanelHistories[agentId] = [];
+    chatPanelHistories[agentId].push({ role: role, content: content });
+  }
+
+  function cp_renderHistory(agentId) {
+    var container = document.getElementById('chatPanelMessages');
+    if (!container) return;
+    var history = chatPanelHistories[agentId] || [];
+    if (!history.length) {
+      container.innerHTML = '<div class="chat-bubble chat-bubble-assistant">Message away.</div>';
+      return;
+    }
+    container.innerHTML = history.map(function(m) {
+      var cls = m.role === 'user' ? 'chat-bubble chat-bubble-user' : 'chat-bubble chat-bubble-assistant';
+      var el = document.createElement('div');
+      el.className = cls;
+      if (m.role === 'assistant') { el.innerHTML = m.content; } else { el.textContent = m.content; }
+      return el.outerHTML;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+  }
 
   function toggleChatPanel() {
     var panel = document.getElementById('chatPanel');
@@ -497,6 +521,7 @@ function chatBubbleScript(): string {
     var name = select.options[select.selectedIndex].text;
     localStorage.setItem('lifeos_chat_agent', select.value);
     document.getElementById('chatPanelInput').placeholder = 'Message ' + name + '...';
+    cp_renderHistory(select.value);
   }
 
   function openChatPanelSSE() {
@@ -506,15 +531,21 @@ function chatBubbleScript(): string {
       try {
         var ev = JSON.parse(e.data);
         if (ev.source !== 'dashboard') return;
-        var messages = document.getElementById('chatPanelMessages');
-        if (!messages) return;
-        var typingNode = messages.querySelector('.chat-typing');
-        if (typingNode) typingNode.remove();
-        var bubble = document.createElement('div');
-        bubble.className = 'chat-bubble chat-bubble-assistant';
-        bubble.innerHTML = ev.content || '';
-        messages.appendChild(bubble);
-        messages.scrollTop = messages.scrollHeight;
+        var select = document.getElementById('chatPanelAgent');
+        var currentAgent = select ? select.value : '';
+        var targetAgent = ev.agentId || currentAgent;
+        cp_pushHistory(targetAgent, 'assistant', ev.content || '');
+        if (targetAgent === currentAgent) {
+          var messages = document.getElementById('chatPanelMessages');
+          if (!messages) return;
+          var typingNode = messages.querySelector('.chat-typing');
+          if (typingNode) typingNode.remove();
+          var bubble = document.createElement('div');
+          bubble.className = 'chat-bubble chat-bubble-assistant';
+          bubble.innerHTML = ev.content || '';
+          messages.appendChild(bubble);
+          messages.scrollTop = messages.scrollHeight;
+        }
       } catch (err) { console.error('chat panel SSE parse', err); }
     });
     chatPanelSSE.onerror = function() {
@@ -534,6 +565,9 @@ function chatBubbleScript(): string {
     input.value = '';
 
     var messages = document.getElementById('chatPanelMessages');
+    // Clear placeholder bubble on first message
+    if (!(chatPanelHistories[agentId] || []).length) messages.innerHTML = '';
+    cp_pushHistory(agentId, 'user', msg);
     var userBubble = document.createElement('div');
     userBubble.className = 'chat-bubble chat-bubble-user';
     userBubble.textContent = msg;
@@ -2411,6 +2445,31 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
   var activeAgent = '';
   var agentSSE = null;
   var agentsCache = [];
+  var agentHistories = {}; // { agentId: [{ role: 'user'|'assistant', content: '...' }] }
+
+  function pushAgentHistory(agentId, role, content) {
+    if (!agentHistories[agentId]) agentHistories[agentId] = [];
+    agentHistories[agentId].push({ role: role, content: content });
+  }
+
+  function renderAgentHistory(agentId) {
+    var container = document.getElementById('agentMessages');
+    var history = agentHistories[agentId] || [];
+    if (!history.length) {
+      var agent = agentsCache.find(function(a) { return a.id === agentId; });
+      var name = agent ? agent.name : agentId;
+      container.innerHTML = '<div class="chat-bubble chat-bubble-assistant">Chatting with ' + name + '. Go.</div>';
+      return;
+    }
+    container.innerHTML = history.map(function(m) {
+      var cls = m.role === 'user' ? 'chat-bubble chat-bubble-user' : 'chat-bubble chat-bubble-assistant';
+      var el = document.createElement('div');
+      el.className = cls;
+      if (m.role === 'assistant') { el.innerHTML = m.content; } else { el.textContent = m.content; }
+      return el.outerHTML;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+  }
 
   async function loadAgentsPage() {
     try {
@@ -2480,7 +2539,7 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
     document.getElementById('agentChatName').textContent = name;
     document.getElementById('agentChatStatus').textContent = 'Online';
     document.getElementById('agentInput').placeholder = 'Message ' + name + '...';
-    document.getElementById('agentMessages').innerHTML = '<div class="chat-bubble chat-bubble-assistant">Chatting with ' + name + '. Go.</div>';
+    renderAgentHistory(agentId);
     if (scroll !== false) document.getElementById('agentChatArea').scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -2491,12 +2550,16 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
       try {
         var ev = JSON.parse(e.data);
         if (ev.source !== 'dashboard') return;
-        document.getElementById('agentTyping').style.display = 'none';
-        var bubble = document.createElement('div');
-        bubble.className = 'chat-bubble chat-bubble-assistant';
-        bubble.innerHTML = ev.content || '';
-        document.getElementById('agentMessages').appendChild(bubble);
-        document.getElementById('agentMessages').scrollTop = document.getElementById('agentMessages').scrollHeight;
+        var targetAgent = ev.agentId || activeAgent;
+        pushAgentHistory(targetAgent, 'assistant', ev.content || '');
+        if (targetAgent === activeAgent) {
+          document.getElementById('agentTyping').style.display = 'none';
+          var bubble = document.createElement('div');
+          bubble.className = 'chat-bubble chat-bubble-assistant';
+          bubble.innerHTML = ev.content || '';
+          document.getElementById('agentMessages').appendChild(bubble);
+          document.getElementById('agentMessages').scrollTop = document.getElementById('agentMessages').scrollHeight;
+        }
       } catch (err) { console.error('SSE parse error', err); }
     });
     agentSSE.addEventListener('processing', function(e) {
@@ -2514,6 +2577,11 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
     var msg = input.value.trim();
     if (!msg) return;
     input.value = '';
+    // Clear the placeholder "Chatting with X. Go." bubble on first send
+    if (!(agentHistories[activeAgent] || []).length) {
+      document.getElementById('agentMessages').innerHTML = '';
+    }
+    pushAgentHistory(activeAgent, 'user', msg);
     var messages = document.getElementById('agentMessages');
     var userBubble = document.createElement('div');
     userBubble.className = 'chat-bubble chat-bubble-user';
