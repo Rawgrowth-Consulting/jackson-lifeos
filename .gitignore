@@ -37,9 +37,7 @@ migrations/.applied.json
 scripts/waste-reminder.sh
 
 # Personal config -- lives in RAWCLAW_CONFIG (default ~/.rawclaw)
-CLAUDE.md
 agents/*/agent.yaml
-agents/*/CLAUDE.md
 knowledge/
 
 .next/

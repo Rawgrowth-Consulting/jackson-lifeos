@@ -255,10 +255,12 @@ def scrape_instagram(competitor_key, competitor_info):
         likes = item.get("likesCount", 0) or 0
         comments_count = item.get("commentsCount", 0) or 0
         views = item.get("videoViewCount", 0) or item.get("videoPlayCount", 0) or 0
-        followers = item.get("ownerFollowerCount", 1) or 1
 
+        # Use views-based engagement (likes+comments / views) since follower count
+        # is often unavailable from scrapes. Falls back to 0 if no views.
         total_engagement = likes + comments_count
-        engagement_rate = (total_engagement / followers * 100) if followers > 0 else 0
+        denominator = views if views > 0 else (likes * 10 if likes > 0 else 1)
+        engagement_rate = (total_engagement / denominator * 100)
 
         rows.append({
             "competitor": competitor_key,
@@ -419,10 +421,10 @@ def print_summary(db, competitor=None):
 
     # Top performers
     print(f"\n{'TOP 10 BY ENGAGEMENT':=^60}")
+    eng_filter = f"{where} AND engagement_rate > 0" if where else "WHERE engagement_rate > 0"
     cursor = db.execute(f"""
         SELECT competitor, platform, caption, engagement_rate, likes, views, post_url
-        FROM competitor_content {where}
-        WHERE engagement_rate > 0
+        FROM competitor_content {eng_filter}
         ORDER BY engagement_rate DESC
         LIMIT 10
     """)
