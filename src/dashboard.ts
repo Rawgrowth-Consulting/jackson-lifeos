@@ -67,6 +67,7 @@ import {
   RECRUIT_PIPELINE_STAGES,
 } from './db.js';
 import { generateContent, parseJsonResponse } from './gemini.js';
+import { notifyRecruitStageChange } from './recruit-notify.js';
 import { getSecurityStatus } from './security.js';
 import { listAgentIds, loadAgentConfig, setAgentModel } from './agent-config.js';
 import {
@@ -127,12 +128,6 @@ Reply with JSON: {"agent": "agent_id"}`;
     logger.error({ err }, 'Auto-assign classification failed');
     return null;
   }
-}
-
-// ── Recruit stage change notification callback ───────────────────────────────
-let recruitStageCallback: ((name: string, stage: string, stepsComplete: number, stepsTotal: number) => void) | null = null;
-export function setRecruitStageCallback(cb: typeof recruitStageCallback): void {
-  recruitStageCallback = cb;
 }
 
 export function startDashboard(botApi?: Api<RawApi>): void {
@@ -426,7 +421,7 @@ export function startDashboard(botApi?: Api<RawApi>): void {
     const steps = getRecruitSteps(recruit.id);
     const completedSteps = steps.filter((s) => s.completed).map((s) => s.step_key);
     const allStepLabels = Object.values(RECRUIT_PHASES).flatMap((p) =>
-      p.steps.map((s) => `${s.completed ?? completedSteps.includes(s.key) ? '[x]' : '[ ]'} ${s.label}`),
+      p.steps.map((s) => `${completedSteps.includes(s.key) ? '[x]' : '[ ]'} ${s.label}`),
     );
 
     const systemPrompt = `You are a helpful, encouraging assistant that helps people get their life insurance license. You're part of Family First Life's recruiting team, working with Jackson.

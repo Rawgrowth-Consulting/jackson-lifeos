@@ -1016,36 +1016,51 @@ export function getLifeOSSellingHtml(authenticated = false): string {
   return wrapPage('Selling', 'selling', body, authenticated);
 }
 
-// ─── Page 3: Recruiting ─────────────────────────────────────────────────────────
+// ─── Page 3: Recruiting (Admin Kanban) ──────────────────────────────────────────
 
 export function getLifeOSRecruitingHtml(authenticated = false): string {
+  const stages = [
+    { key: 'interested', label: 'Interested' },
+    { key: 'getting_started', label: 'Exam Scheduled' },
+    { key: 'pre_licensing', label: 'Pre-Licensing' },
+    { key: 'exam_prep', label: 'Exam Prep' },
+    { key: 'licensed', label: 'Licensed' },
+    { key: 'contracting', label: 'Contracting' },
+    { key: 'appointed', label: 'Appointed' },
+  ];
+
   const body = `
   <style>
-    .kanban { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 24px; min-height: 300px; }
+    .kanban { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 24px; min-height: 300px; }
     .kanban-col {
       background: var(--color-cream-soft); border: 1px solid var(--color-stone-50);
       border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px;
     }
     .kanban-col-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
-    .kanban-col-title { font-size: 11px; font-weight: 700; color: var(--color-sage-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .kanban-col-title { font-size: 10px; font-weight: 700; color: var(--color-sage-muted); text-transform: uppercase; letter-spacing: 0.08em; }
     .kanban-col-count { font-size: 10px; font-weight: 700; color: var(--color-sage-muted); background: var(--color-stone-50); padding: 2px 8px; border-radius: 999px; }
     .kanban-card {
       background: var(--color-paper);
       border: 1px solid var(--color-stone-50); border-radius: 12px;
       padding: 12px 14px; transition: all var(--transition-fast);
-      box-shadow: 0 1px 2px rgba(5,36,21,0.04);
+      box-shadow: 0 1px 2px rgba(5,36,21,0.04); cursor: pointer;
     }
     .kanban-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(5,36,21,0.08); }
     .kanban-card-name { font-size: 13px; font-weight: 600; color: var(--color-forest-deep); margin-bottom: 4px; }
-    .kanban-card-phone { font-size: 11px; color: var(--color-sage-muted); margin-bottom: 6px; }
+    .kanban-card-detail { font-size: 11px; color: var(--color-sage-muted); margin-bottom: 6px; }
     .kanban-card-meta { display: flex; gap: 6px; flex-wrap: wrap; }
     .source-badge { font-size: 10px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+    .source-form { background: rgba(126,163,126,0.15); color: var(--color-sage); }
+    .source-manual { background: rgba(126,151,163,0.15); color: var(--color-slate); }
     .source-ad { background: rgba(126,151,163,0.15); color: var(--color-slate); }
     .source-referral { background: rgba(126,163,126,0.15); color: var(--color-sage); }
     .source-organic { background: var(--color-stone-50); color: var(--color-sage-muted); }
     .days-badge { font-size: 10px; font-weight: 500; color: var(--color-sage-muted); background: var(--color-stone-50); padding: 2px 10px; border-radius: 999px; }
-    @media (max-width: 1024px) { .kanban { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 640px) { .kanban { grid-template-columns: repeat(2, 1fr); } }
+    .stale-badge { font-size: 10px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: rgba(208,119,101,0.15); color: var(--color-clay); }
+    .mini-progress { width: 100%; height: 4px; background: var(--color-stone-50); border-radius: 2px; margin-top: 6px; }
+    .mini-progress-fill { height: 100%; border-radius: 2px; background: var(--color-sage); transition: width 0.3s ease; }
+    @media (max-width: 1200px) { .kanban { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 768px) { .kanban { grid-template-columns: repeat(2, 1fr); } }
 
     .lead-form-overlay {
       display: none; position: fixed; inset: 0; z-index: 80;
@@ -1056,9 +1071,19 @@ export function getLifeOSRecruitingHtml(authenticated = false): string {
     .lead-form-card {
       background: var(--color-paper);
       border: 1px solid var(--color-stone-50); border-radius: 20px;
-      padding: 32px; width: 420px; max-width: 90vw;
+      padding: 32px; width: 500px; max-width: 90vw; max-height: 90vh; overflow-y: auto;
       box-shadow: 0 8px 40px rgba(5,36,21,0.15);
     }
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .filter-btn {
+      padding: 6px 16px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--color-stone-50); background: var(--color-paper);
+      color: var(--color-sage-muted); cursor: pointer; transition: all var(--transition-fast);
+    }
+    .filter-btn:hover, .filter-btn.active { background: var(--color-forest); color: var(--color-cream); border-color: var(--color-forest); }
+    .detail-step { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; }
+    .detail-step-check { color: var(--color-sage); font-weight: 700; }
+    .detail-step-pending { color: var(--color-stone-100); }
   </style>
 
   <div class="animate-lift-in" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
@@ -1066,139 +1091,52 @@ export function getLifeOSRecruitingHtml(authenticated = false): string {
       <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Recruiting</h1>
       <p style="font-size:14px;color:var(--color-sage-muted);margin:0;">Pipeline, leads, and conversion tracking.</p>
     </div>
-    <button class="los-btn" onclick="document.getElementById('leadForm').classList.add('open')">+ Add Lead</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="los-btn-outline" onclick="copySignupLink()" id="copyLinkBtn">Copy Sign-Up Link</button>
+      <button class="los-btn" onclick="document.getElementById('leadForm').classList.add('open')">+ Add Lead</button>
+    </div>
   </div>
 
   <!-- KPI Row -->
-  <div class="summary-bar animate-lift-in delay-1">
+  <div class="summary-bar animate-lift-in delay-1" id="kpiRow">
     <div class="summary-stat">
-      <div class="summary-stat-val">24</div>
+      <div class="summary-stat-val" id="kpiTotal">--</div>
       <div class="summary-stat-label">Total Recruits</div>
     </div>
     <div class="summary-stat">
-      <div class="summary-stat-val" style="color:var(--color-forest);">8</div>
+      <div class="summary-stat-val" style="color:var(--color-forest);" id="kpiPipeline">--</div>
       <div class="summary-stat-label">In Pipeline</div>
     </div>
     <div class="summary-stat">
-      <div class="summary-stat-val" style="color:var(--color-sage);">33%</div>
+      <div class="summary-stat-val" style="color:var(--color-sage);" id="kpiConversion">--</div>
       <div class="summary-stat-label">Conversion Rate</div>
     </div>
     <div class="summary-stat">
-      <div class="summary-stat-val">18</div>
-      <div class="summary-stat-label">Avg Days to Dial</div>
+      <div class="summary-stat-val" id="kpiDays">--</div>
+      <div class="summary-stat-label">Avg Days in Pipeline</div>
     </div>
   </div>
 
+  <!-- Filter bar -->
+  <div class="filter-bar animate-lift-in delay-2" style="margin-bottom:16px;">
+    <button class="filter-btn active" onclick="filterRecruits('all')">All</button>
+    <button class="filter-btn" onclick="filterRecruits('stale')" id="staleBtn">Needs Follow-Up</button>
+  </div>
+
   <!-- Kanban -->
-  <div class="section-title animate-lift-in delay-2">Pipeline</div>
-  <div class="kanban animate-lift-in delay-2">
-
-    <div class="kanban-col">
+  <div class="kanban animate-lift-in delay-2" id="kanbanBoard">
+    ${stages.map(s => `
+    <div class="kanban-col" id="col-${s.key}">
       <div class="kanban-col-header">
-        <div class="kanban-col-title">Interested</div>
-        <div class="kanban-col-count">2</div>
+        <div class="kanban-col-title">${s.label}</div>
+        <div class="kanban-col-count" id="count-${s.key}">0</div>
       </div>
-      <div class="kanban-card">
-        <div class="kanban-card-name">Marcus Johnson</div>
-        <div class="kanban-card-phone">(555) 234-8901</div>
-        <div class="kanban-card-meta">
-          <span class="source-badge source-ad">Ad</span>
-          <span class="days-badge">3 days</span>
-        </div>
-      </div>
-      <div class="kanban-card">
-        <div class="kanban-card-name">Lisa Chen</div>
-        <div class="kanban-card-phone">(555) 345-6789</div>
-        <div class="kanban-card-meta">
-          <span class="source-badge source-referral">Referral</span>
-          <span class="days-badge">1 day</span>
-        </div>
-      </div>
-    </div>
+    </div>`).join('')}
+  </div>
 
-    <div class="kanban-col">
-      <div class="kanban-col-header">
-        <div class="kanban-col-title">Pre-License</div>
-        <div class="kanban-col-count">1</div>
-      </div>
-      <div class="kanban-card">
-        <div class="kanban-card-name">David Williams</div>
-        <div class="kanban-card-phone">(555) 456-7890</div>
-        <div class="kanban-card-meta">
-          <span class="source-badge source-ad">Ad</span>
-          <span class="days-badge">7 days</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="kanban-col">
-      <div class="kanban-col-header">
-        <div class="kanban-col-title">Exam Scheduled</div>
-        <div class="kanban-col-count">1</div>
-      </div>
-      <div class="kanban-card">
-        <div class="kanban-card-name">Sarah Miller</div>
-        <div class="kanban-card-phone">(555) 567-8901</div>
-        <div class="kanban-card-meta">
-          <span class="source-badge source-organic">Organic</span>
-          <span class="days-badge">12 days</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="kanban-col">
-      <div class="kanban-col-header">
-        <div class="kanban-col-title">Exam Passed</div>
-        <div class="kanban-col-count">1</div>
-      </div>
-      <div class="kanban-card">
-        <div class="kanban-card-name">James Wilson</div>
-        <div class="kanban-card-phone">(555) 678-9012</div>
-        <div class="kanban-card-meta">
-          <span class="source-badge source-referral">Referral</span>
-          <span class="days-badge">5 days</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="kanban-col">
-      <div class="kanban-col-header">
-        <div class="kanban-col-title">Contracting</div>
-        <div class="kanban-col-count">1</div>
-      </div>
-      <div class="kanban-card">
-        <div class="kanban-card-name">Maria Garcia</div>
-        <div class="kanban-card-phone">(555) 789-0123</div>
-        <div class="kanban-card-meta">
-          <span class="source-badge source-ad">Ad</span>
-          <span class="days-badge">8 days</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="kanban-col">
-      <div class="kanban-col-header">
-        <div class="kanban-col-title">Appointed</div>
-        <div class="kanban-col-count">2</div>
-      </div>
-      <div class="kanban-card">
-        <div class="kanban-card-name">Robert Taylor</div>
-        <div class="kanban-card-phone">(555) 890-1234</div>
-        <div class="kanban-card-meta">
-          <span class="source-badge source-referral">Referral</span>
-          <span class="days-badge">2 days</span>
-        </div>
-      </div>
-      <div class="kanban-card">
-        <div class="kanban-card-name">Ana Martinez</div>
-        <div class="kanban-card-phone">(555) 901-2345</div>
-        <div class="kanban-card-meta">
-          <span class="source-badge source-ad">Ad</span>
-          <span class="days-badge">1 day</span>
-        </div>
-      </div>
-    </div>
-
+  <!-- Recruit Detail Modal -->
+  <div id="detailModal" class="lead-form-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+    <div class="lead-form-card" id="detailContent"></div>
   </div>
 
   <!-- Add Lead Form Modal -->
@@ -1208,24 +1146,37 @@ export function getLifeOSRecruitingHtml(authenticated = false): string {
         <h2 class="serif-display" style="font-size:20px;margin:0;color:var(--color-forest-deep);">Add New Lead</h2>
         <button onclick="document.getElementById('leadForm').classList.remove('open')" style="background:none;border:none;color:var(--color-sage-muted);cursor:pointer;font-size:22px;line-height:1;">&times;</button>
       </div>
-      <form onsubmit="event.preventDefault();alert('Lead added (mock).');document.getElementById('leadForm').classList.remove('open');" style="display:flex;flex-direction:column;gap:16px;">
+      <form id="addLeadForm" style="display:flex;flex-direction:column;gap:16px;">
         <div>
-          <label class="label" style="display:block;margin-bottom:6px;">Name</label>
-          <input type="text" class="los-input" placeholder="Full name" required>
-        </div>
-        <div>
-          <label class="label" style="display:block;margin-bottom:6px;">Phone</label>
-          <input type="tel" class="los-input" placeholder="(555) 000-0000">
+          <label class="label" style="display:block;margin-bottom:6px;">Name *</label>
+          <input type="text" class="los-input" name="name" placeholder="Full name" required>
         </div>
         <div>
           <label class="label" style="display:block;margin-bottom:6px;">Email</label>
-          <input type="email" class="los-input" placeholder="email@example.com">
+          <input type="email" class="los-input" name="email" placeholder="email@example.com">
+        </div>
+        <div>
+          <label class="label" style="display:block;margin-bottom:6px;">Phone</label>
+          <input type="tel" class="los-input" name="phone" placeholder="(555) 000-0000">
+        </div>
+        <div>
+          <label class="label" style="display:block;margin-bottom:6px;">State</label>
+          <input type="text" class="los-input" name="state" placeholder="e.g. Florida">
         </div>
         <div>
           <label class="label" style="display:block;margin-bottom:6px;">Source</label>
-          <select class="los-select">
-            <option>Ad</option><option>Referral</option><option>Organic</option><option>Cold Call</option><option>Social Media</option>
+          <select class="los-select" name="source">
+            <option value="manual">Manual</option>
+            <option value="referral">Referral</option>
+            <option value="ad">Ad</option>
+            <option value="social_media">Social Media</option>
+            <option value="cold_call">Cold Call</option>
+            <option value="organic">Organic</option>
           </select>
+        </div>
+        <div>
+          <label class="label" style="display:block;margin-bottom:6px;">Notes</label>
+          <textarea class="los-input" name="notes" rows="2" placeholder="Optional notes..." style="resize:vertical;"></textarea>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px;">
           <button type="button" class="los-btn-outline" onclick="document.getElementById('leadForm').classList.remove('open')">Cancel</button>
@@ -1233,9 +1184,549 @@ export function getLifeOSRecruitingHtml(authenticated = false): string {
         </div>
       </form>
     </div>
-  </div>`;
+  </div>
+
+  <script>
+    const STAGES = ${JSON.stringify(stages)};
+    let allRecruits = [];
+    let currentFilter = 'all';
+
+    async function loadData() {
+      const [recruitsRes, statsRes] = await Promise.all([
+        fetch('/api/recruiting/recruits').then(r => r.json()),
+        fetch('/api/recruiting/stats').then(r => r.json()),
+      ]);
+      allRecruits = recruitsRes.recruits || [];
+      document.getElementById('kpiTotal').textContent = statsRes.total || 0;
+      document.getElementById('kpiPipeline').textContent = statsRes.inPipeline || 0;
+      document.getElementById('kpiConversion').textContent = (statsRes.conversionRate || 0) + '%';
+      document.getElementById('kpiDays').textContent = statsRes.avgDays || 0;
+      renderKanban(allRecruits);
+    }
+
+    function renderKanban(recruits) {
+      STAGES.forEach(s => {
+        const col = document.getElementById('col-' + s.key);
+        const cards = col.querySelectorAll('.kanban-card');
+        cards.forEach(c => c.remove());
+        const stageRecruits = recruits.filter(r => r.pipeline_stage === s.key);
+        document.getElementById('count-' + s.key).textContent = stageRecruits.length;
+        stageRecruits.forEach(r => {
+          const daysInactive = r.days_in_stage || 0;
+          const isStale = daysInactive >= 7 && r.pipeline_stage !== 'appointed';
+          const pct = r.steps_total > 0 ? Math.round((r.steps_completed / r.steps_total) * 100) : 0;
+          const card = document.createElement('div');
+          card.className = 'kanban-card';
+          card.onclick = () => showDetail(r.id);
+          card.innerHTML = \`
+            <div class="kanban-card-name">\${esc(r.name)}</div>
+            <div class="kanban-card-detail">\${esc(r.phone || r.email || '')}</div>
+            <div class="kanban-card-meta">
+              <span class="source-badge source-\${r.source}">\${esc(r.source)}</span>
+              \${isStale ? '<span class="stale-badge">Follow up</span>' : ''}
+              <span class="days-badge">\${daysInactive}d</span>
+            </div>
+            <div class="mini-progress"><div class="mini-progress-fill" style="width:\${pct}%;background:\${pct>=100?'var(--color-sage)':'var(--color-gold)'}"></div></div>
+          \`;
+          col.appendChild(card);
+        });
+      });
+    }
+
+    async function filterRecruits(type) {
+      currentFilter = type;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      if (type === 'stale') {
+        document.getElementById('staleBtn').classList.add('active');
+        const res = await fetch('/api/recruiting/recruits?stale=7').then(r => r.json());
+        renderKanban(res.recruits || []);
+      } else {
+        document.querySelector('.filter-btn').classList.add('active');
+        renderKanban(allRecruits);
+      }
+    }
+
+    async function showDetail(id) {
+      const res = await fetch('/api/recruiting/recruits/' + id).then(r => r.json());
+      if (!res.recruit) return;
+      const r = res.recruit;
+      const steps = res.steps || [];
+      const phases = ${JSON.stringify(Object.values(
+        (() => {
+          // We import from db.ts at runtime, but for the HTML template we need the phases inline
+          // We'll use a placeholder that gets replaced
+          return {};
+        })()
+      ))};
+      const doneKeys = new Set(steps.filter(s => s.completed).map(s => s.step_key));
+      const modal = document.getElementById('detailContent');
+      const dashLink = r.access_token ? location.origin + '/r/' + r.access_token : '';
+      modal.innerHTML = \`
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <h2 class="serif-display" style="font-size:20px;margin:0;color:var(--color-forest-deep);">\${esc(r.name)}</h2>
+          <button onclick="document.getElementById('detailModal').classList.remove('open')" style="background:none;border:none;color:var(--color-sage-muted);cursor:pointer;font-size:22px;line-height:1;">&times;</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;font-size:13px;">
+          <div><span class="label">Email</span><br>\${esc(r.email || '—')}</div>
+          <div><span class="label">Phone</span><br>\${esc(r.phone || '—')}</div>
+          <div><span class="label">State</span><br>\${esc(r.state || '—')}</div>
+          <div><span class="label">Source</span><br>\${esc(r.source)}</div>
+        </div>
+        \${dashLink ? '<div style="margin-bottom:16px;"><span class="label">Dashboard Link</span><br><a href="'+esc(dashLink)+'" target="_blank" style="color:var(--color-forest);font-size:12px;word-break:break-all;">'+esc(dashLink)+'</a></div>' : ''}
+        <div style="margin-bottom:16px;">
+          <span class="label">Stage</span>
+          <select class="los-select" style="margin-top:6px;" onchange="updateRecruit('${'{r.id}'}', {pipeline_stage: this.value})" id="stageSelect">
+            ${stages.map(s => '<option value="' + s.key + '">' + s.label + '</option>').join('')}
+          </select>
+        </div>
+        <div style="margin-bottom:16px;">
+          <span class="label">Progress</span>
+          <div style="margin-top:8px;">
+            \${steps.map(s => \`<div class="detail-step">
+              <span class="\${s.completed ? 'detail-step-check' : 'detail-step-pending'}">\${s.completed ? '\\u2713' : '\\u25CB'}</span>
+              <span style="\${s.completed ? 'text-decoration:line-through;color:var(--color-sage-muted)' : ''}">\${esc(s.step_key.split('.').pop().replace(/_/g, ' '))}</span>
+            </div>\`).join('')}
+          </div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <span class="label">Notes</span>
+          <textarea class="los-input" id="notesArea" rows="3" style="margin-top:6px;resize:vertical;">\${esc(r.notes || '')}</textarea>
+          <button class="los-btn" style="margin-top:8px;font-size:12px;padding:6px 16px;" onclick="updateRecruit('\${r.id}', {notes: document.getElementById('notesArea').value})">Save Notes</button>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--color-stone-50);padding-top:16px;">
+          <button class="los-btn-outline" style="color:var(--color-clay);border-color:var(--color-clay);font-size:12px;padding:6px 16px;" onclick="if(confirm('Delete this recruit?'))deleteRecruit('\${r.id}')">Delete</button>
+        </div>
+      \`;
+      document.getElementById('stageSelect').value = r.pipeline_stage;
+      document.getElementById('detailModal').classList.add('open');
+    }
+
+    async function updateRecruit(id, data) {
+      await fetch('/api/recruiting/recruits/' + id, {
+        method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)
+      });
+      loadData();
+    }
+
+    async function deleteRecruit(id) {
+      await fetch('/api/recruiting/recruits/' + id, { method: 'DELETE' });
+      document.getElementById('detailModal').classList.remove('open');
+      loadData();
+    }
+
+    function copySignupLink() {
+      const link = location.origin + '/join';
+      navigator.clipboard.writeText(link).then(() => {
+        const btn = document.getElementById('copyLinkBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy Sign-Up Link', 2000);
+      });
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // Add lead form
+    document.getElementById('addLeadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const data = Object.fromEntries(fd.entries());
+      const res = await fetch('/api/recruiting/recruits', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)
+      }).then(r => r.json());
+      if (res.ok) {
+        document.getElementById('leadForm').classList.remove('open');
+        e.target.reset();
+        loadData();
+      } else {
+        alert(res.error || 'Failed to add lead');
+      }
+    });
+
+    loadData();
+  <\/script>`;
 
   return wrapPage('Recruiting', 'recruiting', body, authenticated);
+}
+
+// ─── Public Sign-Up Page (/join) ─────────────────────────────────────────────
+
+const US_STATES = ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'];
+
+export function getRecruitSignupHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Join the Team — Family First Life</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+${sharedStyles()}
+.signup-page {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.signup-card {
+  background: var(--color-paper);
+  border: 1px solid var(--color-stone-50); border-radius: 24px;
+  padding: 48px; width: 480px; max-width: 100%;
+  box-shadow: 0 8px 40px rgba(5,36,21,0.08);
+}
+.signup-logo {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 24px; font-weight: 500; font-style: italic;
+  color: var(--color-forest-deep);
+  text-align: center; margin-bottom: 8px;
+}
+.signup-subtitle {
+  font-size: 14px; color: var(--color-sage-muted);
+  text-align: center; margin-bottom: 32px;
+}
+.signup-success {
+  display: none; text-align: center; padding: 24px 0;
+}
+.signup-success h2 {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 24px; color: var(--color-forest-deep);
+  margin: 0 0 12px;
+}
+</style>
+</head>
+<body>
+<div class="signup-page">
+  <div class="signup-card animate-lift-in">
+    <div class="signup-logo">Life OS</div>
+    <div class="signup-subtitle">Start your journey to getting licensed. Fill out the form below to get started.</div>
+    <form id="signupForm" style="display:flex;flex-direction:column;gap:16px;">
+      <div>
+        <label class="label" style="display:block;margin-bottom:6px;">Full Name *</label>
+        <input type="text" class="los-input" name="name" placeholder="Your full name" required>
+      </div>
+      <div>
+        <label class="label" style="display:block;margin-bottom:6px;">Email *</label>
+        <input type="email" class="los-input" name="email" placeholder="your.email@example.com" required>
+      </div>
+      <div>
+        <label class="label" style="display:block;margin-bottom:6px;">Phone</label>
+        <input type="tel" class="los-input" name="phone" placeholder="(555) 000-0000">
+      </div>
+      <div>
+        <label class="label" style="display:block;margin-bottom:6px;">State</label>
+        <select class="los-select" name="state">
+          <option value="">Select your state...</option>
+          ${US_STATES.map(s => `<option value="${s}">${s}</option>`).join('\n          ')}
+        </select>
+      </div>
+      <button type="submit" class="los-btn" style="width:100%;margin-top:8px;padding:14px;" id="submitBtn">Get Started</button>
+      <div id="signupError" style="display:none;color:var(--color-clay);font-size:13px;text-align:center;"></div>
+    </form>
+    <div class="signup-success" id="successView">
+      <h2>Welcome to the team!</h2>
+      <p style="color:var(--color-sage-muted);margin-bottom:24px;">Your account has been created. Click below to access your licensing dashboard.</p>
+      <a id="dashboardLink" href="#" class="los-btn" style="display:inline-block;text-decoration:none;padding:14px 32px;">Go to My Dashboard</a>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('signupForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  btn.textContent = 'Creating account...';
+  btn.disabled = true;
+  const errEl = document.getElementById('signupError');
+  errEl.style.display = 'none';
+
+  const fd = new FormData(e.target);
+  const data = Object.fromEntries(fd.entries());
+
+  try {
+    const res = await fetch('/api/recruit/signup', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (json.ok && json.token) {
+      document.getElementById('signupForm').style.display = 'none';
+      const successView = document.getElementById('successView');
+      successView.style.display = 'block';
+      document.getElementById('dashboardLink').href = '/r/' + json.token;
+    } else {
+      errEl.textContent = json.error || 'Something went wrong. Please try again.';
+      errEl.style.display = 'block';
+      btn.textContent = 'Get Started';
+      btn.disabled = false;
+    }
+  } catch {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = 'block';
+    btn.textContent = 'Get Started';
+    btn.disabled = false;
+  }
+});
+<\/script>
+</body>
+</html>`;
+}
+
+// ─── Recruit Dashboard (/r/:token) ─────────────────────────────────────────────
+
+import { RECRUIT_PHASES, type Recruit, type RecruitStep } from './db.js';
+
+export function getRecruitDashboardHtml(recruit: Recruit, steps: RecruitStep[]): string {
+  const completedKeys = new Set(steps.filter(s => s.completed).map(s => s.step_key));
+  const totalSteps = steps.length;
+  const completedCount = completedKeys.size;
+  const pct = totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0;
+
+  const phasesHtml = Object.entries(RECRUIT_PHASES).map(([phaseKey, phase], idx) => {
+    const phaseSteps = phase.steps;
+    const phaseDone = phaseSteps.filter(s => completedKeys.has(s.key)).length;
+    const phaseComplete = phaseDone === phaseSteps.length;
+    const isCurrentPhase = !phaseComplete && (idx === 0 || Object.values(RECRUIT_PHASES).slice(0, idx).every(
+      p => p.steps.every(s => completedKeys.has(s.key))
+    ));
+
+    return `
+    <div class="phase-section ${phaseComplete ? 'phase-done' : ''} ${isCurrentPhase ? 'phase-current' : ''}" data-phase="${phaseKey}">
+      <div class="phase-header" onclick="togglePhase('${phaseKey}')">
+        <div class="phase-header-left">
+          <span class="phase-icon">${phaseComplete ? '\u2713' : (idx + 1)}</span>
+          <span class="phase-title">${phase.label}</span>
+        </div>
+        <span class="phase-count">${phaseDone}/${phaseSteps.length}</span>
+      </div>
+      <div class="phase-body ${isCurrentPhase ? 'open' : ''}" id="phase-${phaseKey}">
+        ${phaseSteps.map(step => {
+          const done = completedKeys.has(step.key);
+          const stepData = steps.find(s => s.step_key === step.key);
+          const doneAt = stepData?.completed_at ? new Date(stepData.completed_at * 1000).toLocaleDateString() : '';
+          return `
+          <label class="step-item ${done ? 'step-done' : ''}">
+            <input type="checkbox" ${done ? 'checked' : ''} onchange="toggleStep('${step.key}', this.checked)" class="step-checkbox">
+            <span class="step-label">${step.label}</span>
+            ${doneAt ? `<span class="step-date">${doneAt}</span>` : ''}
+          </label>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Licensing Dashboard — Life OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+${sharedStyles()}
+.dash-container { max-width: 720px; margin: 0 auto; padding: 32px 24px 120px; }
+.dash-header { text-align: center; margin-bottom: 32px; }
+.dash-header h1 { font-family: 'Lora', Georgia, serif; font-size: 28px; font-weight: 500; margin: 0 0 8px; color: var(--color-forest-deep); }
+.dash-header p { font-size: 14px; color: var(--color-sage-muted); margin: 0; }
+
+.progress-card {
+  background: var(--color-paper); border: 1px solid var(--color-stone-50);
+  border-radius: 16px; padding: 24px; margin-bottom: 24px;
+  box-shadow: 0 1px 2px rgba(5,36,21,0.04);
+}
+.progress-label { font-size: 13px; color: var(--color-sage-muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
+.progress-bar { width: 100%; height: 12px; background: var(--color-stone-50); border-radius: 6px; overflow: hidden; }
+.progress-bar-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--color-sage), var(--color-forest)); transition: width 0.5s ease; }
+
+.phase-section {
+  background: var(--color-paper); border: 1px solid var(--color-stone-50);
+  border-radius: 16px; margin-bottom: 12px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(5,36,21,0.04);
+}
+.phase-section.phase-current { border-color: var(--color-sage); box-shadow: 0 0 0 1px var(--color-sage), 0 2px 8px rgba(126,163,126,0.15); }
+.phase-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; cursor: pointer; user-select: none;
+  transition: background var(--transition-fast);
+}
+.phase-header:hover { background: rgba(5,36,21,0.02); }
+.phase-header-left { display: flex; align-items: center; gap: 12px; }
+.phase-icon {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--color-stone-50); color: var(--color-sage-muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+}
+.phase-done .phase-icon { background: var(--color-sage); color: white; }
+.phase-current .phase-icon { background: var(--color-forest); color: white; }
+.phase-title { font-size: 14px; font-weight: 600; color: var(--color-forest-deep); }
+.phase-count { font-size: 12px; color: var(--color-sage-muted); font-weight: 600; }
+.phase-body { display: none; padding: 0 20px 16px; }
+.phase-body.open { display: block; }
+
+.step-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--color-stone-50);
+  cursor: pointer; font-size: 14px; color: var(--color-forest-deep);
+}
+.step-item:last-child { border-bottom: none; }
+.step-item.step-done { color: var(--color-sage-muted); }
+.step-item.step-done .step-label { text-decoration: line-through; }
+.step-checkbox {
+  width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0;
+  accent-color: var(--color-forest);
+}
+.step-label { flex: 1; }
+.step-date { font-size: 11px; color: var(--color-sage-muted); white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .dash-container { padding: 20px 16px 120px; }
+}
+</style>
+</head>
+<body>
+<div class="dash-container">
+  <div class="dash-header animate-lift-in">
+    <div style="font-family:'Lora',Georgia,serif;font-size:20px;font-style:italic;color:var(--color-forest-deep);margin-bottom:12px;">Life OS</div>
+    <h1>Welcome, ${recruit.name.split(' ')[0]}!</h1>
+    <p>Follow the steps below to get your life insurance license.</p>
+  </div>
+
+  <div class="progress-card animate-lift-in delay-1">
+    <div class="progress-label">
+      <span>Overall Progress</span>
+      <span id="progressText">${completedCount}/${totalSteps} steps (${pct}%)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-bar-fill" id="progressFill" style="width:${pct}%"></div>
+    </div>
+  </div>
+
+  <div class="animate-lift-in delay-2">
+    ${phasesHtml}
+  </div>
+</div>
+
+<!-- AI Chat Widget -->
+<button class="chat-fab" onclick="toggleChat()" id="chatFab" title="Ask about licensing">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+</button>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-panel-header">
+    <div class="chat-panel-header-left">
+      <span style="font-size:18px;">&#129302;</span>
+      <span class="chat-panel-header-title">Licensing Assistant</span>
+    </div>
+    <button class="chat-panel-close" onclick="toggleChat()">&times;</button>
+  </div>
+  <div class="chat-panel-messages" id="chatMessages">
+    <div class="chat-bubble chat-bubble-assistant">Hi ${recruit.name.split(' ')[0]}! I'm here to help you with your life insurance licensing process. Ask me anything!</div>
+  </div>
+  <div class="chat-panel-input-area">
+    <input class="chat-panel-input" id="chatInput" placeholder="Ask about licensing..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}">
+    <button class="chat-panel-send" onclick="sendChat()">Send</button>
+  </div>
+</div>
+
+<script>
+const TOKEN = '${recruit.access_token}';
+
+function togglePhase(key) {
+  const el = document.getElementById('phase-' + key);
+  el.classList.toggle('open');
+}
+
+async function toggleStep(stepKey, checked) {
+  const res = await fetch('/api/recruit/' + TOKEN + '/step', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ stepKey, completed: checked }),
+  }).then(r => r.json());
+
+  if (res.newStage) {
+    // Reload page to reflect new stage
+    location.reload();
+  } else {
+    // Update progress bar
+    refreshProgress();
+  }
+}
+
+async function refreshProgress() {
+  const res = await fetch('/api/recruit/' + TOKEN + '/steps').then(r => r.json());
+  const steps = res.steps || [];
+  const done = steps.filter(s => s.completed).length;
+  const total = steps.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('progressText').textContent = done + '/' + total + ' steps (' + pct + '%)';
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+// Chat
+function toggleChat() {
+  const panel = document.getElementById('chatPanel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    document.getElementById('chatInput').focus();
+    if (!window._chatLoaded) {
+      loadChatHistory();
+      window._chatLoaded = true;
+    }
+  }
+}
+
+async function loadChatHistory() {
+  try {
+    const res = await fetch('/api/recruit/' + TOKEN + '/chat/history').then(r => r.json());
+    const msgs = res.messages || [];
+    if (msgs.length > 0) {
+      const container = document.getElementById('chatMessages');
+      container.innerHTML = '';
+      msgs.forEach(m => addChatBubble(m.role, m.content));
+    }
+  } catch {}
+}
+
+function addChatBubble(role, text) {
+  const container = document.getElementById('chatMessages');
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble chat-bubble-' + role;
+  bubble.textContent = text;
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
+  input.value = '';
+
+  addChatBubble('user', message);
+
+  // Show typing indicator
+  const typing = document.createElement('div');
+  typing.className = 'chat-bubble chat-bubble-assistant chat-typing';
+  typing.innerHTML = '<div class="chat-typing-dot"></div><div class="chat-typing-dot"></div><div class="chat-typing-dot"></div>';
+  document.getElementById('chatMessages').appendChild(typing);
+
+  try {
+    const res = await fetch('/api/recruit/' + TOKEN + '/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message }),
+    }).then(r => r.json());
+    typing.remove();
+    addChatBubble('assistant', res.reply || res.error || 'Sorry, something went wrong.');
+  } catch {
+    typing.remove();
+    addChatBubble('assistant', 'Sorry, I couldn\\'t connect. Please try again.');
+  }
+}
+<\/script>
+</body>
+</html>`;
 }
 
 // ─── Page 4: Brand ──────────────────────────────────────────────────────────────
