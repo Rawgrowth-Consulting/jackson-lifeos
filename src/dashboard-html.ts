@@ -4,30 +4,33 @@ export function getDashboardHtml(token: string, chatId: string): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>RawClaw Mission Control — by Raw Growth</title>
+<title>Life OS — AI Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   /* -- Design tokens -- */
   :root {
-    --bg-base: #0a0a10;
-    --bg-surface: rgba(18, 18, 28, 0.65);
-    --bg-elevated: rgba(24, 24, 38, 0.72);
-    --bg-overlay: rgba(10, 10, 18, 0.85);
-    --border-subtle: rgba(255, 255, 255, 0.06);
-    --border-default: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(255, 255, 255, 0.14);
-    --accent: #3b82f6;
-    --accent-glow: rgba(59, 130, 246, 0.25);
-    --accent-green: #34d399;
-    --accent-green-glow: rgba(52, 211, 153, 0.2);
+    --bg-base: #f5efe9;
+    --bg-surface: #ffffff;
+    --bg-elevated: #ffffff;
+    --bg-overlay: rgba(245,239,233,0.97);
+    --border-subtle: rgba(5,36,21,0.06);
+    --border-default: rgba(5,36,21,0.08);
+    --border-hover: rgba(5,36,21,0.16);
+    --accent: #09321f;
+    --accent-glow: rgba(9,50,31,0.2);
+    --accent-green: #7ea37e;
+    --accent-green-glow: rgba(126,163,126,0.2);
     --glass-blur: 16px;
     --radius-sm: 8px;
     --radius-md: 14px;
     --radius-lg: 20px;
-    --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.25), 0 8px 32px rgba(0,0,0,0.15);
-    --shadow-card-hover: 0 2px 4px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.2);
-    --shadow-glow-green: 0 0 20px rgba(52, 211, 153, 0.15), 0 0 40px rgba(52, 211, 153, 0.05);
+    --shadow-card: 0 1px 2px rgba(5,36,21,0.04);
+    --shadow-card-hover: 0 4px 16px rgba(5,36,21,0.08);
+    --shadow-glow-green: 0 0 12px rgba(126,163,126,0.1);
     --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-med: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -36,164 +39,145 @@ export function getDashboardHtml(token: string, chatId: string): string {
   * { box-sizing: border-box; }
   body {
     background: var(--bg-base) !important;
-    background-image:
-      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(59, 50, 120, 0.25) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 50% at 80% 50%, rgba(30, 58, 110, 0.12) 0%, transparent 50%),
-      radial-gradient(ellipse 40% 40% at 10% 90%, rgba(59, 50, 120, 0.08) 0%, transparent 50%) !important;
-    color: #c8cad0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+    color: #052415;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     letter-spacing: -0.01em;
     line-height: 1.5;
+    margin: 0;
+    padding: 0;
   }
+  ::selection {
+    background: #09321f;
+    color: #f5efe9;
+  }
+  .serif { font-family: 'Lora', Georgia, serif; }
+  .serif-display { font-family: 'Lora', Georgia, serif; font-weight: 500; letter-spacing: -0.02em; line-height: 1.05; }
 
   /* -- Custom scrollbar -- */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
-  * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(5,36,21,0.16); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(5,36,21,0.32); }
+  * { scrollbar-width: thin; scrollbar-color: rgba(5,36,21,0.16) transparent; }
 
   /* -- Card / glass surface -- */
   .card {
     background: var(--bg-surface);
-    backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    padding: 18px;
+    border-radius: 16px;
+    padding: 20px;
     margin-bottom: 14px;
     box-shadow: var(--shadow-card);
     transition: transform var(--transition-med), box-shadow var(--transition-med), border-color var(--transition-fast);
     position: relative;
     overflow: hidden;
   }
-  .card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 50%, rgba(255,255,255,0.02) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
 
   /* -- Pills / status badges -- */
-  .pill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-  .pill-active { background: rgba(6, 78, 59, 0.6); color: #6ee7b7; box-shadow: 0 0 12px rgba(52, 211, 153, 0.12); }
-  .pill-running { background: rgba(10, 54, 34, 0.7); color: #34d399; animation: statusPulse 2.5s ease-in-out infinite; box-shadow: 0 0 16px rgba(52, 211, 153, 0.15); }
-  .pill-paused { background: rgba(66, 32, 6, 0.6); color: #fbbf24; box-shadow: 0 0 12px rgba(251, 191, 36, 0.1); }
-  .last-success { color: #6ee7b7; }
+  .pill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+  .pill-active { background: rgba(126,163,126,0.15); color: #7ea37e; }
+  .pill-running { background: rgba(126,163,126,0.15); color: #7ea37e; animation: statusPulse 2.5s ease-in-out infinite; }
+  .pill-paused { background: rgba(217,174,98,0.15); color: #b8860b; }
+  .last-success { color: #7ea37e; }
   .last-failed { color: #f87171; }
-  .last-timeout { color: #fbbf24; }
+  .last-timeout { color: #b8860b; }
   @keyframes statusPulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 16px rgba(52, 211, 153, 0.15); }
-    50% { opacity: 0.7; box-shadow: 0 0 24px rgba(52, 211, 153, 0.25); }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-  .pill-connected { background: rgba(6, 78, 59, 0.5); color: #6ee7b7; box-shadow: 0 0 12px rgba(52, 211, 153, 0.1); }
-  .pill-disconnected { background: rgba(59, 15, 15, 0.5); color: #f87171; box-shadow: 0 0 12px rgba(248, 113, 113, 0.1); }
-  .pill-unconfigured { background: rgba(31, 31, 31, 0.5); color: #6b7280; }
+  .pill-connected { background: rgba(126,163,126,0.15); color: #7ea37e; }
+  .pill-disconnected { background: rgba(220,38,38,0.1); color: #dc2626; }
+  .pill-unconfigured { background: rgba(5,36,21,0.06); color: #495c52; }
 
   /* -- Stats -- */
-  .stat-val { font-size: 24px; font-weight: 700; color: #f0f0f5; letter-spacing: -0.02em; }
-  .stat-label { font-size: 11px; color: rgba(156, 163, 175, 0.8); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+  .stat-val { font-size: 24px; font-weight: 500; color: #052415; letter-spacing: -0.02em; font-family: 'Lora', Georgia, serif; }
+  .stat-label { font-size: 11px; color: #495c52; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
 
   /* -- Model picker -- */
   .model-picker { position: relative; cursor: pointer; margin-top: 2px; }
   .model-current { font-size: 11px; color: var(--accent-green); transition: color var(--transition-fast); }
   .model-current:hover { color: #a78bfa; }
-  .model-menu { position: absolute; top: 22px; left: 0; z-index: 30; background: var(--bg-elevated); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 4px 0; min-width: 120px; box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04); }
-  .model-opt { padding: 7px 14px; font-size: 12px; color: #9ca3af; cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast); border-radius: 4px; margin: 1px 4px; }
-  .model-opt:hover { background: rgba(255,255,255,0.06); color: #e0e0e0; }
+  .model-menu { position: absolute; top: 22px; left: 0; z-index: 30; background: #ffffff; border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 4px 0; min-width: 120px; box-shadow: 0 4px 16px rgba(5,36,21,0.1); }
+  .model-opt { padding: 7px 14px; font-size: 12px; color: #495c52; cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast); border-radius: 4px; margin: 1px 4px; }
+  .model-opt:hover { background: rgba(5,36,21,0.04); color: #052415; }
   .model-active { color: var(--accent-green); }
   .model-active::before { content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--accent-green); margin-right: 6px; vertical-align: middle; box-shadow: 0 0 6px var(--accent-green-glow); }
   details summary { cursor: pointer; list-style: none; }
   details summary::-webkit-details-marker { display: none; }
-  .fade-text { color: #f87171; }
-  .top-text { color: #6ee7b7; }
-  .gauge-bg { fill: rgba(255,255,255,0.06); }
+  .fade-text { color: #d07765; }
+  .top-text { color: #7ea37e; }
+  .gauge-bg { fill: rgba(5,36,21,0.06); }
   .refresh-spin { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* -- Privacy blur -- */
   .privacy-blur { filter: blur(5px); cursor: pointer; transition: filter 0.2s; user-select: none; }
   .privacy-blur:hover { filter: blur(3px); }
-  .privacy-toggle { background: none; border: none; cursor: pointer; color: rgba(136,136,136,0.7); font-size: 16px; padding: 2px 6px; margin-left: 8px; transition: color var(--transition-fast); vertical-align: middle; }
-  .privacy-toggle:hover { color: #ccc; }
+  .privacy-toggle { background: none; border: none; cursor: pointer; color: #495c52; font-size: 16px; padding: 2px 6px; margin-left: 8px; transition: color var(--transition-fast); vertical-align: middle; }
+  .privacy-toggle:hover { color: #052415; }
 
   /* -- Hive Mind table -- */
   .hive-table { width: 100%; border-collapse: collapse; }
-  .hive-table th { text-align: left; padding: 6px 10px; font-size: 10px; color: rgba(107,114,128,0.8); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }
-  .hive-table td { padding: 8px 10px; font-size: 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
-  .hive-table .col-time { white-space: nowrap; color: #9ca3af; }
+  .hive-table th { text-align: left; padding: 6px 10px; font-size: 10px; color: #495c52; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }
+  .hive-table td { padding: 8px 10px; font-size: 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: top; color: #052415; }
+  .hive-table .col-time { white-space: nowrap; color: #495c52; }
   .hive-table .col-agent { white-space: nowrap; font-weight: 600; }
-  .hive-table .col-action { white-space: nowrap; color: #9ca3af; }
-  .hive-table .col-summary { color: #d4d4d8; word-break: break-word; line-height: 1.5; }
+  .hive-table .col-action { white-space: nowrap; color: #495c52; }
+  .hive-table .col-summary { color: #052415; word-break: break-word; line-height: 1.5; }
   .hive-table tr { transition: background var(--transition-fast); }
-  .hive-table tr:hover { background: rgba(255,255,255,0.02); }
+  .hive-table tr:hover { background: rgba(5,36,21,0.02); }
   .hive-scroll { max-height: 300px; overflow-y: auto; }
 
   /* -- Summary stats bar -- */
   .summary-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
   .summary-stat {
     background: var(--bg-surface);
-    backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    padding: 14px 18px;
-    display: flex; flex-direction: column; gap: 4px;
+    border-radius: 16px;
+    padding: 20px 24px;
+    display: flex; flex-direction: column; gap: 6px;
     box-shadow: var(--shadow-card);
     transition: transform var(--transition-med), box-shadow var(--transition-med), border-color var(--transition-fast);
     position: relative; overflow: hidden;
   }
-  .summary-stat::before {
-    content: '';
-    position: absolute; inset: 0; border-radius: inherit; padding: 1px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 50%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
-  }
   .summary-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); border-color: var(--border-hover); }
-  .summary-stat-val { font-size: 22px; font-weight: 700; color: #f0f0f5; line-height: 1.2; letter-spacing: -0.02em; }
-  .summary-stat-label { font-size: 11px; color: rgba(107,114,128,0.8); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+  .summary-stat-val { font-size: 26px; font-weight: 500; color: #052415; line-height: 1.2; letter-spacing: -0.02em; font-family: 'Lora', Georgia, serif; }
+  .summary-stat-label { font-size: 11px; color: #495c52; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
   @media (max-width: 640px) { .summary-bar { grid-template-columns: repeat(2, 1fr); } }
 
   /* -- Memory expand -- */
   .mem-expand { cursor: pointer; transition: background var(--transition-fast); padding: 6px 8px; margin: 0 -8px; border-radius: var(--radius-sm); }
-  .mem-expand:hover { background: rgba(255,255,255,0.03); }
-  .mem-expand .mem-full { display: none; margin-top: 6px; color: #d4d4d8; white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.6; }
+  .mem-expand:hover { background: rgba(5,36,21,0.03); }
+  .mem-expand .mem-full { display: none; margin-top: 6px; color: #052415; white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.6; }
   .mem-expand.open .mem-full { display: block; }
   .mem-expand.open .mem-preview { display: none; }
 
   /* -- Task prompt & device badge -- */
   .task-prompt { transition: filter 0.2s; cursor: pointer; }
   .device-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-  .device-mobile { background: rgba(10,54,34,0.5); color: #34d399; }
-  .device-desktop { background: rgba(4,47,26,0.5); color: #6ee7b7; }
+  .device-mobile { background: rgba(126,163,126,0.15); color: #7ea37e; }
+  .device-desktop { background: rgba(126,163,126,0.15); color: #7ea37e; }
 
   /* -- Drawer -- */
-  .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+  .drawer-overlay { position: fixed; inset: 0; background: rgba(5,36,21,0.2); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
   .drawer-overlay.open { opacity: 1; pointer-events: auto; }
-  .drawer { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: var(--bg-overlay); backdrop-filter: blur(24px) saturate(1.4); -webkit-backdrop-filter: blur(24px) saturate(1.4); border-top: 1px solid var(--border-default); border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 85vh; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; box-shadow: 0 -8px 40px rgba(0,0,0,0.4); }
+  .drawer { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: var(--bg-overlay); backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2); border-top: 1px solid var(--border-default); border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 85vh; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; box-shadow: 0 -4px 24px rgba(5,36,21,0.08); }
   .drawer.open { transform: translateY(0); }
-  .drawer-handle { width: 36px; height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; margin: 10px auto 0; flex-shrink: 0; }
+  .drawer-handle { width: 36px; height: 4px; background: rgba(5,36,21,0.12); border-radius: 2px; margin: 10px auto 0; flex-shrink: 0; }
   .drawer-body { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px; flex: 1; }
   .mem-item {
-    background: var(--bg-surface); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border-default); border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default); border-radius: 16px;
     padding: 14px; margin-bottom: 10px; cursor: pointer;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
     box-shadow: var(--shadow-card);
   }
   .mem-item:hover { border-color: var(--border-hover); transform: translateY(-1px); box-shadow: var(--shadow-card-hover); }
-  .mem-item:active, .mem-item.expanded { border-color: rgba(255,255,255,0.14); }
+  .mem-item:active, .mem-item.expanded { border-color: rgba(5,36,21,0.16); }
   .mem-item .mem-content { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .mem-item.expanded .mem-content { display: block; -webkit-line-clamp: unset; }
   .salience-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; box-shadow: 0 0 6px currentColor; }
@@ -203,225 +187,299 @@ export function getDashboardHtml(token: string, chatId: string): string {
 
   /* -- Info tooltips -- */
   .info-tip { position: relative; display: inline-block; vertical-align: middle; margin-left: 6px; }
-  .info-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,0.06); color: rgba(136,136,136,0.7); font-size: 11px; cursor: pointer; user-select: none; line-height: 1; transition: background var(--transition-fast), color var(--transition-fast); }
-  .info-icon:hover { background: rgba(255,255,255,0.1); color: #bbb; }
-  .info-tooltip { position: absolute; left: 50%; transform: translateX(-50%); top: calc(100% + 8px); background: var(--bg-elevated); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border: 1px solid var(--border-default); color: #bbb; font-size: 12px; font-weight: 400; line-height: 1.5; padding: 12px 14px; border-radius: var(--radius-sm); max-width: 280px; min-width: 200px; z-index: 30; opacity: 0; pointer-events: none; transition: opacity var(--transition-fast); white-space: normal; text-transform: none; letter-spacing: normal; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
-  .info-tooltip::before { content: ''; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid rgba(255,255,255,0.08); }
-  .info-tooltip::after { content: ''; position: absolute; top: -5px; left: 50%; transform: translateX(-50%); border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 5px solid rgba(24,24,38,0.9); }
+  .info-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(5,36,21,0.06); color: #495c52; font-size: 11px; cursor: pointer; user-select: none; line-height: 1; transition: background var(--transition-fast), color var(--transition-fast); }
+  .info-icon:hover { background: rgba(5,36,21,0.1); color: #052415; }
+  .info-tooltip { position: absolute; left: 50%; transform: translateX(-50%); top: calc(100% + 8px); background: #ffffff; border: 1px solid var(--border-default); color: #495c52; font-size: 12px; font-weight: 400; line-height: 1.5; padding: 12px 14px; border-radius: var(--radius-sm); max-width: 280px; min-width: 200px; z-index: 30; opacity: 0; pointer-events: none; transition: opacity var(--transition-fast); white-space: normal; text-transform: none; letter-spacing: normal; box-shadow: 0 4px 16px rgba(5,36,21,0.1); }
+  .info-tooltip::before { content: ''; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid rgba(5,36,21,0.08); }
+  .info-tooltip::after { content: ''; position: absolute; top: -5px; left: 50%; transform: translateX(-50%); border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 5px solid #ffffff; }
   .info-tip.active .info-tooltip { opacity: 1; pointer-events: auto; }
 
   /* -- Chat FAB -- */
   .chat-fab {
     position: fixed; bottom: 24px; right: 24px; z-index: 60;
     width: 56px; height: 56px; border-radius: 50%;
-    background: linear-gradient(135deg, #014421 0%, #016b35 100%);
-    color: #fff; border: none; cursor: pointer;
+    background: #09321f;
+    color: #f5efe9; border: none; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 16px rgba(1,68,33,0.35), 0 0 24px rgba(1,68,33,0.15), 0 1px 3px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 16px rgba(9,50,31,0.25), 0 1px 3px rgba(5,36,21,0.15);
     transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   }
-  .chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(1,68,33,0.45), 0 0 32px rgba(1,68,33,0.2), 0 2px 4px rgba(0,0,0,0.3); }
+  .chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(9,50,31,0.35); }
   .chat-fab:active { transform: scale(0.95); }
-  .chat-fab-badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; border-radius: 50%; background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; display: none; align-items: center; justify-content: center; border: 2px solid var(--bg-base); box-shadow: 0 0 8px rgba(239,68,68,0.3); }
+  .chat-fab-badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; border-radius: 50%; background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; display: none; align-items: center; justify-content: center; border: 2px solid var(--bg-base); }
 
   /* -- Chat slide-over -- */
   .chat-overlay {
     position: fixed; top: 0; right: 0; bottom: 0; width: 560px; max-width: 100vw; z-index: 70;
-    background: var(--bg-overlay); backdrop-filter: blur(24px) saturate(1.3); -webkit-backdrop-filter: blur(24px) saturate(1.3);
+    background: var(--bg-overlay); backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2);
     display: flex; flex-direction: column; transform: translateX(100%);
     transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
-    box-shadow: -8px 0 40px rgba(0,0,0,0.5); border-left: 1px solid var(--border-default);
+    box-shadow: -4px 0 24px rgba(5,36,21,0.08); border-left: 1px solid var(--border-default);
   }
   .chat-overlay.open { transform: translateX(0); }
-  .chat-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: rgba(14,14,22,0.6); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
+  .chat-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: #09321f; border-bottom: 1px solid rgba(5,36,21,0.16); flex-shrink: 0; }
   .chat-header-left { display: flex; align-items: center; gap: 10px; }
-  .chat-header-title { font-size: 16px; font-weight: 700; color: #f0f0f5; letter-spacing: -0.01em; }
+  .chat-header-title { font-size: 16px; font-weight: 700; color: #f5efe9; letter-spacing: -0.01em; }
   .chat-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px currentColor; }
 
   /* -- Agent tabs -- */
-  .chat-agent-tabs { display: flex; gap: 0; background: rgba(14,14,22,0.5); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; overflow-x: auto; padding: 0 14px; }
-  .chat-agent-tab { padding: 10px 16px; font-size: 12px; font-weight: 600; color: #6b7280; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; transition: all var(--transition-fast); white-space: nowrap; display: flex; align-items: center; gap: 6px; }
-  .chat-agent-tab:hover { color: #d4d4d8; }
-  .chat-agent-tab.active { color: #6ee7b7; border-bottom-color: var(--accent-green); }
+  .chat-agent-tabs { display: flex; gap: 0; background: #ffffff; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; overflow-x: auto; padding: 0 14px; }
+  .chat-agent-tab { padding: 10px 16px; font-size: 12px; font-weight: 600; color: #495c52; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; transition: all var(--transition-fast); white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+  .chat-agent-tab:hover { color: #052415; }
+  .chat-agent-tab.active { color: #09321f; border-bottom-color: var(--accent-green); }
   .chat-agent-tab .agent-dot { width: 6px; height: 6px; border-radius: 50%; }
-  .chat-agent-tab .agent-dot.live { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.4); }
+  .chat-agent-tab .agent-dot.live { background: #7ea37e; box-shadow: 0 0 6px rgba(126,163,126,0.4); }
   .chat-agent-tab .agent-dot.dead { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.3); }
 
   /* -- Session info bar -- */
-  .chat-session-bar { display: flex; align-items: center; gap: 12px; padding: 7px 18px; background: rgba(14,14,22,0.4); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; font-size: 11px; color: #6b7280; }
+  .chat-session-bar { display: flex; align-items: center; gap: 12px; padding: 7px 18px; background: #ffffff; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; font-size: 11px; color: #495c52; }
   .chat-session-bar .session-stat { display: flex; align-items: center; gap: 4px; }
-  .chat-session-bar .session-stat-val { color: #6ee7b7; font-weight: 600; }
-  .chat-session-bar .session-model { background: rgba(255,255,255,0.04); padding: 3px 10px; border-radius: 6px; color: #9ca3af; font-weight: 600; border: 1px solid var(--border-subtle); }
+  .chat-session-bar .session-stat-val { color: #7ea37e; font-weight: 600; }
+  .chat-session-bar .session-model { background: rgba(5,36,21,0.04); padding: 3px 10px; border-radius: 6px; color: #495c52; font-weight: 600; border: 1px solid var(--border-subtle); }
 
   /* -- Quick actions -- */
-  .chat-quick-actions { display: flex; gap: 6px; padding: 8px 18px; background: rgba(14,14,22,0.4); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; overflow-x: auto; }
+  .chat-quick-actions { display: flex; gap: 6px; padding: 8px 18px; background: #ffffff; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; overflow-x: auto; }
   .chat-quick-btn {
-    padding: 5px 12px; font-size: 11px; font-weight: 600; color: #9ca3af;
-    background: var(--bg-surface); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    padding: 5px 12px; font-size: 11px; font-weight: 600; color: #495c52;
+    background: var(--bg-surface);
     border: 1px solid var(--border-default); border-radius: var(--radius-sm);
     cursor: pointer; transition: all var(--transition-fast); white-space: nowrap;
   }
-  .chat-quick-btn:hover { background: rgba(255,255,255,0.06); color: #e0e0e0; border-color: var(--border-hover); box-shadow: 0 0 12px rgba(255,255,255,0.03); }
-  .chat-quick-btn.destructive:hover { border-color: rgba(220,38,38,0.4); color: #fca5a5; box-shadow: 0 0 12px rgba(220,38,38,0.1); }
+  .chat-quick-btn:hover { background: rgba(5,36,21,0.04); color: #052415; border-color: var(--border-hover); }
+  .chat-quick-btn.destructive:hover { border-color: rgba(220,38,38,0.4); color: #dc2626; }
 
   /* -- Chat messages -- */
-  .chat-messages { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding: 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .chat-messages { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding: 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; background: #f5efe9; }
   .chat-bubble { max-width: 90%; padding: 12px 16px; border-radius: 18px; font-size: 14px; line-height: 1.65; word-wrap: break-word; overflow-wrap: anywhere; word-break: break-word; }
-  .chat-bubble-user { background: linear-gradient(135deg, rgba(4,47,26,0.7) 0%, rgba(6,78,59,0.5) 100%); color: #d1fae5; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
-  .chat-bubble-assistant { background: var(--bg-elevated); color: #d4d4d8; align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid var(--border-default); min-width: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-  .chat-bubble-source { font-size: 10px; color: rgba(107,114,128,0.7); margin-top: 4px; }
-  .chat-bubble code { background: rgba(255,255,255,0.08); padding: 2px 5px; border-radius: 4px; font-size: 13px; }
-  .chat-bubble pre { background: rgba(0,0,0,0.3); padding: 10px 12px; border-radius: var(--radius-sm); overflow-x: auto; margin: 8px 0; font-size: 12px; border: 1px solid var(--border-subtle); }
+  .chat-bubble-user { background: #09321f; color: #f5efe9; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 1px 4px rgba(5,36,21,0.12); }
+  .chat-bubble-assistant { background: #ffffff; color: #052415; align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid var(--border-default); min-width: 0; box-shadow: 0 1px 4px rgba(5,36,21,0.06); }
+  .chat-bubble-source { font-size: 10px; color: #495c52; margin-top: 4px; }
+  .chat-bubble code { background: rgba(5,36,21,0.06); padding: 2px 5px; border-radius: 4px; font-size: 13px; }
+  .chat-bubble pre { background: rgba(5,36,21,0.04); padding: 10px 12px; border-radius: var(--radius-sm); overflow-x: auto; margin: 8px 0; font-size: 12px; border: 1px solid var(--border-subtle); }
   .chat-bubble pre code { background: none; padding: 0; }
   .chat-bubble table { border-collapse: collapse; width: 100%; font-size: 11px; margin: 8px 0; display: block; overflow-x: auto; }
   .chat-bubble th, .chat-bubble td { padding: 4px 8px; border-bottom: 1px solid var(--border-subtle); text-align: left; white-space: nowrap; }
-  .chat-bubble th { color: #6ee7b7; font-weight: 600; }
+  .chat-bubble th { color: #09321f; font-weight: 600; }
 
   /* -- Chat progress bar -- */
-  .chat-progress-bar { display: none; align-items: center; gap: 10px; padding: 12px 18px; background: rgba(14,14,22,0.6); border-top: 1px solid var(--border-subtle); flex-shrink: 0; position: relative; overflow: hidden; }
+  .chat-progress-bar { display: none; align-items: center; gap: 10px; padding: 12px 18px; background: #ffffff; border-top: 1px solid var(--border-subtle); flex-shrink: 0; position: relative; overflow: hidden; }
   .chat-progress-bar.active { display: flex; }
   .chat-progress-pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-green); flex-shrink: 0; animation: progressPulse 1.5s ease-in-out infinite; box-shadow: 0 0 10px var(--accent-green-glow); }
   @keyframes progressPulse { 0%,100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
-  .chat-progress-label { font-size: 13px; color: #9ca3af; }
+  .chat-progress-label { font-size: 13px; color: #495c52; }
   .chat-stop-btn {
     margin-left: auto; background: transparent;
-    border: 1px solid rgba(52,211,153,0.3); color: var(--accent-green);
+    border: 1px solid rgba(126,163,126,0.3); color: var(--accent-green);
     border-radius: var(--radius-sm); width: 28px; height: 28px;
     cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     transition: all var(--transition-fast);
   }
-  .chat-stop-btn:hover { background: rgba(52,211,153,0.1); border-color: var(--accent-green); box-shadow: 0 0 12px var(--accent-green-glow); color: #fff; }
+  .chat-stop-btn:hover { background: rgba(126,163,126,0.1); border-color: var(--accent-green); color: #052415; }
   .chat-progress-shimmer { position: absolute; bottom: 0; left: 0; height: 2px; width: 100%; background: linear-gradient(90deg, transparent, var(--accent-green), transparent); animation: shimmer 2s ease-in-out infinite; }
   @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
   /* -- Chat input -- */
-  .chat-input-area { display: flex; gap: 8px; padding: 14px 18px; background: rgba(14,14,22,0.6); border-top: 1px solid var(--border-subtle); flex-shrink: 0; }
+  .chat-input-area { display: flex; gap: 8px; padding: 14px 18px; background: #ffffff; border-top: 1px solid var(--border-subtle); flex-shrink: 0; }
   .chat-textarea {
-    flex: 1; background: var(--bg-surface); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    flex: 1; background: #f5efe9;
     border: 1px solid var(--border-default); border-radius: 14px;
-    color: #e0e0e0; padding: 10px 16px; font-size: 14px;
+    color: #052415; padding: 10px 16px; font-size: 14px;
     resize: none; outline: none; max-height: 120px; font-family: inherit;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   }
-  .chat-textarea:focus { border-color: rgba(52,211,153,0.3); box-shadow: 0 0 16px rgba(52,211,153,0.08); }
+  .chat-textarea:focus { border-color: rgba(126,163,126,0.5); box-shadow: 0 0 0 3px rgba(126,163,126,0.1); }
   .chat-send-btn {
-    background: linear-gradient(135deg, #014421 0%, #016b35 100%);
-    color: #fff; border: none; border-radius: 14px; padding: 0 18px;
+    background: #09321f;
+    color: #f5efe9; border: none; border-radius: 14px; padding: 0 18px;
     cursor: pointer; font-size: 14px; font-weight: 600;
     transition: all var(--transition-fast); flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(1,68,33,0.25);
+    box-shadow: 0 1px 4px rgba(9,50,31,0.2);
   }
-  .chat-send-btn:hover { box-shadow: 0 4px 16px rgba(1,68,33,0.35), 0 0 20px rgba(1,68,33,0.15); }
-  .chat-send-btn:disabled { background: rgba(255,255,255,0.04); color: #555; cursor: not-allowed; box-shadow: none; }
+  .chat-send-btn:hover { box-shadow: 0 2px 8px rgba(9,50,31,0.3); }
+  .chat-send-btn:disabled { background: rgba(5,36,21,0.06); color: #495c52; cursor: not-allowed; box-shadow: none; }
 
   /* -- Database Explorer -- */
   .db-nav-tabs {
     display: flex; gap: 0;
-    background: var(--bg-surface); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+    background: #ffffff;
     border: 1px solid var(--border-default); border-bottom: 1px solid var(--border-default);
     margin-bottom: 18px; overflow-x: auto; border-radius: var(--radius-md);
     box-shadow: var(--shadow-card);
   }
-  .db-nav-tab { padding: 12px 22px; font-size: 13px; font-weight: 600; color: #6b7280; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; transition: all var(--transition-fast); white-space: nowrap; }
-  .db-nav-tab:hover { color: #d4d4d8; }
-  .db-nav-tab.active { color: #6ee7b7; border-bottom-color: var(--accent-green); }
+  .db-nav-tab { padding: 12px 22px; font-size: 13px; font-weight: 600; color: #495c52; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; transition: all var(--transition-fast); white-space: nowrap; }
+  .db-nav-tab:hover { color: #052415; }
+  .db-nav-tab.active { color: #09321f; border-bottom-color: var(--accent-green); }
   .db-layout { display: grid; grid-template-columns: 220px 1fr; gap: 18px; min-height: 500px; }
   @media (max-width: 768px) { .db-layout { grid-template-columns: 1fr; } }
   .db-sidebar {
-    background: var(--bg-surface); backdrop-filter: blur(var(--glass-blur)) saturate(1.3); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+    background: #ffffff;
     border: 1px solid var(--border-default); border-radius: var(--radius-md);
     padding: 8px 0; max-height: 600px; overflow-y: auto; box-shadow: var(--shadow-card);
   }
-  .db-sidebar-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; cursor: pointer; transition: background var(--transition-fast); font-size: 13px; color: #d4d4d8; }
-  .db-sidebar-item:hover { background: rgba(255,255,255,0.04); }
-  .db-sidebar-item.active { background: rgba(6,78,59,0.3); color: #6ee7b7; }
-  .db-sidebar-count { font-size: 11px; color: #6b7280; background: rgba(255,255,255,0.04); padding: 2px 8px; border-radius: 6px; }
-  .db-sidebar-item.active .db-sidebar-count { color: #6ee7b7; background: rgba(6,95,70,0.4); }
+  .db-sidebar-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; cursor: pointer; transition: background var(--transition-fast); font-size: 13px; color: #052415; }
+  .db-sidebar-item:hover { background: rgba(5,36,21,0.04); }
+  .db-sidebar-item.active { background: rgba(126,163,126,0.12); color: #09321f; }
+  .db-sidebar-count { font-size: 11px; color: #495c52; background: rgba(5,36,21,0.04); padding: 2px 8px; border-radius: 6px; }
+  .db-sidebar-item.active .db-sidebar-count { color: #09321f; background: rgba(126,163,126,0.2); }
   .db-grid-wrapper {
-    background: var(--bg-surface); backdrop-filter: blur(var(--glass-blur)) saturate(1.3); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+    background: #ffffff;
     border: 1px solid var(--border-default); border-radius: var(--radius-md);
     overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow-card);
   }
   .db-grid-scroll { overflow: auto; flex: 1; max-height: 500px; }
   .db-grid { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .db-grid th { position: sticky; top: 0; background: rgba(18,18,28,0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); text-align: left; padding: 10px 14px; font-size: 10px; color: rgba(107,114,128,0.8); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border-default); cursor: pointer; user-select: none; white-space: nowrap; }
-  .db-grid th:hover { color: #d4d4d8; }
+  .db-grid th { position: sticky; top: 0; background: #ffffff; text-align: left; padding: 10px 14px; font-size: 10px; color: #495c52; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border-default); cursor: pointer; user-select: none; white-space: nowrap; }
+  .db-grid th:hover { color: #052415; }
   .db-grid th .sort-arrow { font-size: 9px; margin-left: 4px; opacity: 0.3; }
-  .db-grid th.sorted .sort-arrow { opacity: 1; color: #6ee7b7; }
-  .db-grid td { padding: 8px 14px; border-bottom: 1px solid var(--border-subtle); color: #d4d4d8; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: top; }
+  .db-grid th.sorted .sort-arrow { opacity: 1; color: #7ea37e; }
+  .db-grid td { padding: 8px 14px; border-bottom: 1px solid var(--border-subtle); color: #052415; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: top; }
   .db-grid tr { transition: background var(--transition-fast); }
-  .db-grid tr:hover td { background: rgba(255,255,255,0.02); }
-  .db-grid td.null-val { color: #555; font-style: italic; }
-  .db-pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--border-subtle); font-size: 12px; color: #6b7280; }
+  .db-grid tr:hover td { background: rgba(5,36,21,0.02); }
+  .db-grid td.null-val { color: #495c52; font-style: italic; }
+  .db-pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--border-subtle); font-size: 12px; color: #495c52; }
   .db-page-btn {
-    background: var(--bg-surface); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    color: #d4d4d8; border: 1px solid var(--border-default);
+    background: #ffffff;
+    color: #052415; border: 1px solid var(--border-default);
     border-radius: var(--radius-sm); padding: 5px 14px; cursor: pointer; font-size: 12px;
     transition: all var(--transition-fast);
   }
-  .db-page-btn:hover { background: rgba(255,255,255,0.06); border-color: var(--border-hover); }
+  .db-page-btn:hover { background: rgba(5,36,21,0.04); border-color: var(--border-hover); }
   .db-page-btn:disabled { opacity: 0.25; cursor: not-allowed; }
   .db-query-area { margin-top: 18px; }
   .db-query-textarea {
-    width: 100%; background: var(--bg-surface); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    width: 100%; background: #f5efe9;
     border: 1px solid var(--border-default); border-radius: var(--radius-sm);
-    color: #e0e0e0; padding: 12px 16px; font-size: 13px;
+    color: #052415; padding: 12px 16px; font-size: 13px;
     font-family: 'SF Mono', Monaco, 'Cascadia Code', 'JetBrains Mono', monospace;
     resize: vertical; outline: none; box-sizing: border-box;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   }
-  .db-query-textarea:focus { border-color: rgba(52,211,153,0.3); box-shadow: 0 0 16px rgba(52,211,153,0.08); }
+  .db-query-textarea:focus { border-color: rgba(126,163,126,0.5); box-shadow: 0 0 0 3px rgba(126,163,126,0.1); }
   .db-query-bar { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
   .db-run-btn {
-    background: linear-gradient(135deg, #014421 0%, #016b35 100%);
-    color: #fff; border: none; border-radius: var(--radius-sm);
+    background: #09321f;
+    color: #f5efe9; border: none; border-radius: var(--radius-sm);
     padding: 9px 22px; font-size: 13px; font-weight: 600; cursor: pointer;
-    transition: all var(--transition-fast); box-shadow: 0 2px 8px rgba(1,68,33,0.25);
+    transition: all var(--transition-fast); box-shadow: 0 1px 4px rgba(9,50,31,0.2);
   }
-  .db-run-btn:hover { box-shadow: 0 4px 16px rgba(1,68,33,0.35), 0 0 16px rgba(1,68,33,0.12); }
+  .db-run-btn:hover { box-shadow: 0 2px 8px rgba(9,50,31,0.3); }
   .db-query-error { color: #f87171; font-size: 12px; margin-top: 8px; }
-  .db-query-info { color: #6b7280; font-size: 12px; }
+  .db-query-info { color: #495c52; font-size: 12px; }
 
   /* Supabase grid enhancements */
-  #sb-grid tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  #sb-grid tr:nth-child(even) td { background: rgba(5,36,21,0.02); }
   #sb-grid td.sb-clickable { cursor: pointer; transition: background var(--transition-fast); }
-  #sb-grid td.sb-clickable:hover { background: rgba(59,130,246,0.08); }
-  .sb-row-count { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 600; background: rgba(255,255,255,0.06); color: #6b7280; }
+  #sb-grid td.sb-clickable:hover { background: rgba(126,163,126,0.08); }
+  .sb-row-count { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 600; background: rgba(5,36,21,0.06); color: #495c52; }
   .sb-add-row-btn {
-    background: linear-gradient(135deg, #014421 0%, #016b35 100%);
-    color: #fff; border: none; border-radius: var(--radius-sm);
+    background: #09321f;
+    color: #f5efe9; border: none; border-radius: var(--radius-sm);
     padding: 9px 22px; font-size: 13px; font-weight: 600; cursor: pointer;
-    transition: all var(--transition-fast); box-shadow: 0 2px 8px rgba(1,68,33,0.25);
+    transition: all var(--transition-fast); box-shadow: 0 1px 4px rgba(9,50,31,0.2);
   }
-  .sb-add-row-btn:hover { box-shadow: 0 4px 16px rgba(1,68,33,0.35), 0 0 16px rgba(1,68,33,0.12); }
+  .sb-add-row-btn:hover { box-shadow: 0 2px 8px rgba(9,50,31,0.3); }
   .sb-add-row-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .sb-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-  .sb-form-field label { display: block; font-size: 11px; color: #6b7280; margin-bottom: 3px; font-weight: 500; }
+  .sb-form-field label { display: block; font-size: 11px; color: #495c52; margin-bottom: 3px; font-weight: 500; }
   .sb-form-field input, .sb-form-field textarea {
-    width: 100%; background: var(--bg-surface); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    width: 100%; background: #f5efe9;
     border: 1px solid var(--border-default); border-radius: var(--radius-sm);
-    color: #e0e0e0; padding: 8px 12px; font-size: 12px; outline: none; box-sizing: border-box;
+    color: #052415; padding: 8px 12px; font-size: 12px; outline: none; box-sizing: border-box;
     transition: border-color var(--transition-fast);
   }
-  .sb-form-field input:focus, .sb-form-field textarea:focus { border-color: rgba(52,211,153,0.3); }
+  .sb-form-field input:focus, .sb-form-field textarea:focus { border-color: rgba(126,163,126,0.5); }
   .sb-insert-area { margin-top: 18px; }
   .sb-insert-status { font-size: 12px; margin-top: 8px; }
+
+  /* -- Life OS Navigation -- */
+  .los-nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(245,239,233,0.85);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border-bottom: 1px solid rgba(5,36,21,0.08);
+  }
+  .los-nav-inner {
+    max-width: 1400px; margin: 0 auto; padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between; height: 56px;
+  }
+  .los-nav-logo {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 20px; font-weight: 500; font-style: italic;
+    color: #052415;
+    letter-spacing: -0.02em; text-decoration: none;
+  }
+  .los-nav-links { display: flex; gap: 4px; align-items: center; }
+  .los-nav-link {
+    padding: 6px 14px; font-size: 13px; font-weight: 500;
+    color: #495c52;
+    text-decoration: none; border-radius: 8px;
+    transition: all var(--transition-fast);
+  }
+  .los-nav-link:hover { color: #052415; background: rgba(5,36,21,0.08); }
+  .los-nav-link.active {
+    color: #052415;
+    background: rgba(5,36,21,0.08);
+    font-weight: 600;
+  }
+  .los-nav-name {
+    font-size: 14px; font-weight: 500;
+    color: #052415;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .los-nav-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #09321f;
+    color: #f5efe9;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600;
+    font-family: 'Lora', Georgia, serif;
+  }
+  .los-hamburger {
+    display: none; background: none; border: none;
+    color: #052415; cursor: pointer;
+    width: 40px; height: 40px; align-items: center; justify-content: center;
+    border-radius: 8px;
+  }
+  .los-hamburger:hover { background: rgba(5,36,21,0.08); }
+  .los-mobile-menu {
+    display: none; position: fixed; top: 56px; left: 0; right: 0; bottom: 0; z-index: 45;
+    background: rgba(245,239,233,0.97);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    flex-direction: column; padding: 16px 24px; gap: 4px;
+  }
+  .los-mobile-menu.open { display: flex; }
+  .los-mobile-menu a {
+    padding: 12px 16px; font-size: 16px; font-weight: 500;
+    color: #495c52;
+    text-decoration: none; border-radius: 8px;
+    transition: all var(--transition-fast);
+  }
+  .los-mobile-menu a:hover, .los-mobile-menu a.active {
+    color: #052415;
+    background: rgba(5,36,21,0.08);
+  }
+  @media (max-width: 768px) {
+    .los-nav-links { display: none; }
+    .los-nav-name { display: none; }
+    .los-hamburger { display: flex; }
+  }
 </style>
 </head>
-<body class="p-4 select-none">
+<body class="select-none">
 
 <!-- Login overlay -->
-<div id="login-overlay" style="display:none; position:fixed; inset:0; z-index:9999; background:var(--bg-base); align-items:center; justify-content:center; flex-direction:column;">
-  <div style="background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-lg); padding:40px; max-width:380px; width:90%; backdrop-filter:blur(var(--glass-blur)); box-shadow:var(--shadow-card);">
+<div id="login-overlay" style="display:none; position:fixed; inset:0; z-index:9999; background:#f5efe9; align-items:center; justify-content:center; flex-direction:column;">
+  <div style="background:#ffffff; border:1px solid rgba(5,36,21,0.08); border-radius:20px; padding:40px; max-width:380px; width:90%; box-shadow:0 4px 16px rgba(5,36,21,0.08);">
     <div style="text-align:center; margin-bottom:24px;">
-      <div style="font-size:28px; font-weight:700; color:#fff; letter-spacing:-0.03em;">RawClaw</div>
-      <div style="font-size:13px; color:#888; margin-top:4px;">Enter your dashboard password</div>
+      <div style="font-size:28px; font-weight:500; color:#052415; letter-spacing:-0.03em; font-family:'Lora',Georgia,serif; font-style:italic;">Life OS</div>
+      <div style="font-size:13px; color:#495c52; margin-top:4px;">Enter your dashboard password</div>
     </div>
     <input id="login-password" type="password" placeholder="Password" autofocus
-      style="width:100%; padding:12px 16px; background:var(--bg-elevated); border:1px solid var(--border-default); border-radius:var(--radius-sm); color:#fff; font-size:15px; outline:none; margin-bottom:12px;"
+      style="width:100%; padding:12px 16px; background:#f5efe9; border:1px solid rgba(5,36,21,0.08); border-radius:var(--radius-sm); color:#052415; font-size:15px; outline:none; margin-bottom:12px;"
       onkeydown="if(event.key==='Enter')loginSubmit()">
     <button onclick="loginSubmit()"
-      style="width:100%; padding:12px; background:var(--accent); color:#fff; border:none; border-radius:var(--radius-sm); font-size:15px; font-weight:600; cursor:pointer; transition:var(--transition-fast);"
+      style="width:100%; padding:12px; background:#09321f; color:#f5efe9; border:none; border-radius:var(--radius-sm); font-size:15px; font-weight:600; cursor:pointer; transition:var(--transition-fast);"
       onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
       Sign In
     </button>
@@ -429,25 +487,56 @@ export function getDashboardHtml(token: string, chatId: string): string {
   </div>
 </div>
 
+<!-- Life OS Navigation -->
+<nav class="los-nav">
+  <div class="los-nav-inner">
+    <a href="/" class="los-nav-logo">Life OS</a>
+    <div class="los-nav-links">
+      <a href="/selling" class="los-nav-link">Selling</a>
+      <a href="/recruiting" class="los-nav-link">Recruiting</a>
+      <a href="/brand" class="los-nav-link">Brand</a>
+      <a href="/personal" class="los-nav-link">Personal</a>
+      <a href="/agents" class="los-nav-link">Agents</a>
+      <a href="/ai" class="los-nav-link active">AI</a>
+    </div>
+    <div class="los-nav-name">
+      <div class="los-nav-avatar">J</div>
+      <span>Jackson</span>
+    </div>
+    <button class="los-hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')" aria-label="Menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </div>
+</nav>
+<div id="mobileMenu" class="los-mobile-menu">
+  <a href="/">Hub</a>
+  <a href="/selling">Selling</a>
+  <a href="/recruiting">Recruiting</a>
+  <a href="/brand">Brand</a>
+  <a href="/personal">Personal</a>
+  <a href="/agents">Agents</a>
+  <a href="/ai" class="active">AI</a>
+</div>
+
 <!-- Outer wrapper: single column on mobile, wide 2-col on desktop -->
-<div class="max-w-lg lg:max-w-6xl mx-auto">
+<div class="max-w-lg lg:max-w-6xl mx-auto" style="padding:24px 24px 0">
 
 <!-- Top bar -->
 <div class="flex items-center justify-between mb-1">
   <div class="flex items-center gap-3">
-    <h1 class="text-xl font-bold text-white">RawClaw <span style="font-size:13px;font-weight:400;color:#6b7280">Mission Control</span> <span style="font-size:11px;font-weight:400;color:#028a45;margin-left:8px">by Raw Growth</span></h1>
+    <h1 class="serif-display" style="font-size:22px;color:#052415">AI Dashboard <span style="font-size:13px;font-weight:400;color:#495c52;font-family:system-ui">Mission Control</span></h1>
     <span id="device-badge" class="device-badge"></span>
   </div>
   <div class="flex items-center gap-3">
-    <span id="last-updated" class="text-xs text-gray-500"></span>
-    <button id="refresh-btn" onclick="refreshAll()" class="text-gray-400 hover:text-white transition">
+    <span id="last-updated" class="text-xs text-[#495c52]"></span>
+    <button id="refresh-btn" onclick="refreshAll()" class="text-[#495c52] hover:text-[#052415] transition">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
       </svg>
     </button>
   </div>
 </div>
-<div id="bot-info" class="flex items-center gap-3 mb-4 text-xs text-gray-500" style="display:none"></div>
+<div id="bot-info" class="flex items-center gap-3 mb-4 text-xs text-[#495c52]" style="display:none"></div>
 
 <!-- Main Navigation Tabs -->
 <div class="db-nav-tabs" style="border-radius:10px;margin-bottom:16px">
@@ -482,11 +571,11 @@ export function getDashboardHtml(token: string, chatId: string): string {
 <!-- Agent Status Cards -->
 <div id="agents-section" class="mb-5" style="display:none">
   <div class="flex items-center justify-between mb-2">
-    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Agents</h2>
+    <h2 class="text-sm font-semibold text-[#495c52] uppercase tracking-wider">Agents</h2>
     <div class="flex items-center gap-2">
-      <button onclick="openCreateAgentWizard()" style="background:#014421;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">+ New Agent</button>
+      <button onclick="openCreateAgentWizard()" style="background:#09321f;color:#f5efe9;border:none;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">+ New Agent</button>
       <div class="model-picker" onclick="toggleModelPicker(this)" style="display:inline-block">
-        <span class="model-current" style="color:#6b7280">Set all <span style="font-size:8px;opacity:0.5">&#9662;</span></span>
+        <span class="model-current" style="color:#495c52">Set all <span style="font-size:8px;opacity:0.5">&#9662;</span></span>
         <div class="model-menu" style="display:none;right:0;left:auto">
           <div class="model-opt" data-model="claude-opus-4-6" onclick="pickGlobalModel(this)">All Opus</div>
           <div class="model-opt" data-model="claude-sonnet-4-6" onclick="pickGlobalModel(this)">All Sonnet</div>
@@ -500,19 +589,19 @@ export function getDashboardHtml(token: string, chatId: string): string {
 
 <!-- Hive Mind Feed -->
 <div id="hive-section" class="mb-5" style="display:none">
-  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Hive Mind<button class="privacy-toggle" onclick="toggleSectionBlur('hive')" title="Toggle blur">&#128065;</button></h2>
+  <h2 class="text-sm font-semibold text-[#495c52] uppercase tracking-wider mb-2">Hive Mind<button class="privacy-toggle" onclick="toggleSectionBlur('hive')" title="Toggle blur">&#128065;</button></h2>
   <div id="hive-container" class="card hive-scroll">
-    <div class="text-gray-500 text-sm">Loading...</div>
+    <div class="text-[#495c52] text-sm">Loading...</div>
   </div>
 </div>
 
 <!-- Tasks Inbox -->
 <div id="tasks-inbox-section" class="mb-5" style="display:none">
   <div class="flex items-center justify-between mb-2">
-    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Tasks</h2>
+    <h2 class="text-sm font-semibold text-[#495c52] uppercase tracking-wider">Tasks</h2>
     <div class="flex gap-2">
-      <button onclick="autoAssignAll()" id="auto-assign-all-btn" style="background:#1a1a1a;color:#a78bfa;border:1px solid #2a2a2a;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;display:none">Auto-assign All</button>
-      <button onclick="openMissionModal()" style="background:#014421;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">+ New</button>
+      <button onclick="autoAssignAll()" id="auto-assign-all-btn" style="background:#f5efe9;color:#7e97a3;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;display:none">Auto-assign All</button>
+      <button onclick="openMissionModal()" style="background:#09321f;color:#f5efe9;border:none;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">+ New</button>
     </div>
   </div>
   <div id="tasks-inbox" class="flex flex-wrap gap-3"></div>
@@ -521,115 +610,115 @@ export function getDashboardHtml(token: string, chatId: string): string {
 <!-- Mission Control -->
 <div id="mission-section" class="mb-5" style="display:none">
   <div class="flex items-center justify-between mb-2">
-    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Mission Control</h2>
-    <button onclick="openTaskHistory()" style="background:none;border:none;color:#6b7280;font-size:12px;cursor:pointer">History &rarr;</button>
+    <h2 class="text-sm font-semibold text-[#495c52] uppercase tracking-wider">Mission Control</h2>
+    <button onclick="openTaskHistory()" style="background:none;border:none;color:#495c52;font-size:12px;cursor:pointer">History &rarr;</button>
   </div>
   <div id="mission-board" class="flex gap-3 overflow-x-auto pb-2" style="scroll-snap-type: x mandatory;">
   </div>
 </div>
 
 <!-- Mission Task Creation Modal -->
-<div id="mission-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:40;opacity:0;pointer-events:none;transition:opacity 0.2s"></div>
-<div id="mission-modal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.95);z-index:50;background:#141414;border:1px solid #2a2a2a;border-radius:12px;width:90%;max-width:440px;opacity:0;pointer-events:none;transition:transform 0.2s ease,opacity 0.2s ease">
+<div id="mission-overlay" style="position:fixed;inset:0;background:rgba(5,36,21,0.2);z-index:40;opacity:0;pointer-events:none;transition:opacity 0.2s"></div>
+<div id="mission-modal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.95);z-index:50;background:#ffffff;border:1px solid rgba(5,36,21,0.08);border-radius:16px;width:90%;max-width:440px;opacity:0;pointer-events:none;transition:transform 0.2s ease,opacity 0.2s ease">
   <div class="flex items-center justify-between px-4 pt-4 pb-2">
-    <h3 class="text-sm font-bold text-white">New Task</h3>
-    <button onclick="closeMissionModal()" class="text-gray-500 hover:text-white" style="background:none;border:none;cursor:pointer;font-size:16px">&times;</button>
+    <h3 class="text-sm font-bold text-[#052415]">New Task</h3>
+    <button onclick="closeMissionModal()" class="text-[#495c52] hover:text-[#052415]" style="background:none;border:none;cursor:pointer;font-size:16px">&times;</button>
   </div>
   <div style="padding:0 16px 16px">
-    <input type="text" id="mission-title" placeholder="Title" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box" maxlength="200">
-    <textarea id="mission-prompt" rows="3" placeholder="What should the agent do?" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none;resize:vertical;margin-bottom:8px;box-sizing:border-box" maxlength="10000"></textarea>
+    <input type="text" id="mission-title" placeholder="Title" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 12px;color:#052415;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box" maxlength="200">
+    <textarea id="mission-prompt" rows="3" placeholder="What should the agent do?" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 12px;color:#052415;font-size:13px;outline:none;resize:vertical;margin-bottom:8px;box-sizing:border-box" maxlength="10000"></textarea>
     <div class="flex gap-2 items-center">
-      <select id="mission-priority" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:6px 10px;color:#e0e0e0;font-size:12px;outline:none">
+      <select id="mission-priority" style="background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:6px 10px;color:#052415;font-size:12px;outline:none">
         <option value="0">Low</option>
         <option value="5" selected>Medium</option>
         <option value="10">High</option>
       </select>
-      <button onclick="createMissionTask()" style="flex:1;background:#014421;color:#fff;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer">Create</button>
+      <button onclick="createMissionTask()" style="flex:1;background:#09321f;color:#f5efe9;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer">Create</button>
     </div>
     <div id="mission-error" class="text-red-400 text-xs mt-2" style="display:none"></div>
   </div>
 </div>
 
 <!-- Agent Detail Modal -->
-<div id="agent-modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:40;opacity:0;pointer-events:none;transition:opacity 0.2s"></div>
-<div id="agent-modal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.95);z-index:50;background:#141414;border:1px solid #2a2a2a;border-radius:12px;width:90%;max-width:500px;max-height:80vh;opacity:0;pointer-events:none;transition:transform 0.2s ease,opacity 0.2s ease;display:flex;flex-direction:column">
+<div id="agent-modal-overlay" style="position:fixed;inset:0;background:rgba(5,36,21,0.2);z-index:40;opacity:0;pointer-events:none;transition:opacity 0.2s"></div>
+<div id="agent-modal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.95);z-index:50;background:#ffffff;border:1px solid rgba(5,36,21,0.08);border-radius:16px;width:90%;max-width:500px;max-height:80vh;opacity:0;pointer-events:none;transition:transform 0.2s ease,opacity 0.2s ease;display:flex;flex-direction:column">
   <div class="flex items-center justify-between px-4 pt-4 pb-2">
-    <h3 class="text-sm font-bold text-white" id="agent-modal-title">Agent</h3>
-    <button onclick="closeAgentModal()" class="text-gray-500 hover:text-white" style="background:none;border:none;cursor:pointer;font-size:16px">&times;</button>
+    <h3 class="text-sm font-bold text-[#052415]" id="agent-modal-title">Agent</h3>
+    <button onclick="closeAgentModal()" class="text-[#495c52] hover:text-[#052415]" style="background:none;border:none;cursor:pointer;font-size:16px">&times;</button>
   </div>
   <div id="agent-modal-body" style="overflow-y:auto;padding:0 16px 16px;flex:1"></div>
 </div>
 
 <!-- Create Agent Wizard Modal -->
-<div id="create-agent-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:40;opacity:0;pointer-events:none;transition:opacity 0.2s"></div>
-<div id="create-agent-modal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.95);z-index:50;background:#141414;border:1px solid #2a2a2a;border-radius:12px;width:90%;max-width:480px;max-height:85vh;opacity:0;pointer-events:none;transition:transform 0.2s ease,opacity 0.2s ease;display:flex;flex-direction:column">
+<div id="create-agent-overlay" style="position:fixed;inset:0;background:rgba(5,36,21,0.2);z-index:40;opacity:0;pointer-events:none;transition:opacity 0.2s"></div>
+<div id="create-agent-modal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.95);z-index:50;background:#ffffff;border:1px solid rgba(5,36,21,0.08);border-radius:16px;width:90%;max-width:480px;max-height:85vh;opacity:0;pointer-events:none;transition:transform 0.2s ease,opacity 0.2s ease;display:flex;flex-direction:column">
   <div class="flex items-center justify-between px-4 pt-4 pb-2">
-    <h3 class="text-sm font-bold text-white" id="create-agent-title">New Agent</h3>
-    <button onclick="closeCreateAgentWizard()" class="text-gray-500 hover:text-white" style="background:none;border:none;cursor:pointer;font-size:16px">&times;</button>
+    <h3 class="text-sm font-bold text-[#052415]" id="create-agent-title">New Agent</h3>
+    <button onclick="closeCreateAgentWizard()" class="text-[#495c52] hover:text-[#052415]" style="background:none;border:none;cursor:pointer;font-size:16px">&times;</button>
   </div>
   <!-- Step indicators -->
   <div class="flex gap-2 px-4 mb-3">
-    <div id="caw-step-1-dot" style="flex:1;height:3px;border-radius:2px;background:#014421;transition:background 0.2s"></div>
-    <div id="caw-step-2-dot" style="flex:1;height:3px;border-radius:2px;background:#2a2a2a;transition:background 0.2s"></div>
-    <div id="caw-step-3-dot" style="flex:1;height:3px;border-radius:2px;background:#2a2a2a;transition:background 0.2s"></div>
+    <div id="caw-step-1-dot" style="flex:1;height:3px;border-radius:2px;background:#09321f;transition:background 0.2s"></div>
+    <div id="caw-step-2-dot" style="flex:1;height:3px;border-radius:2px;background:rgba(5,36,21,0.08);transition:background 0.2s"></div>
+    <div id="caw-step-3-dot" style="flex:1;height:3px;border-radius:2px;background:rgba(5,36,21,0.08);transition:background 0.2s"></div>
   </div>
   <div id="create-agent-body" style="overflow-y:auto;padding:0 16px 16px;flex:1">
     <!-- Step 1: Basics -->
     <div id="caw-step-1">
-      <label class="text-xs text-gray-400 block mb-1">Agent ID <span class="text-gray-600">(lowercase, no spaces)</span></label>
-      <input type="text" id="caw-id" placeholder="e.g. analytics" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:4px;box-sizing:border-box" maxlength="30" oninput="cawIdChanged()">
+      <label class="text-xs text-[#495c52] block mb-1">Agent ID <span class="text-[#495c52]">(lowercase, no spaces)</span></label>
+      <input type="text" id="caw-id" placeholder="e.g. analytics" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 12px;color:#052415;font-size:13px;outline:none;margin-bottom:4px;box-sizing:border-box" maxlength="30" oninput="cawIdChanged()">
       <div id="caw-id-status" class="text-xs mb-3" style="min-height:16px"></div>
 
-      <label class="text-xs text-gray-400 block mb-1">Display Name</label>
-      <input type="text" id="caw-name" placeholder="e.g. Analytics" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box" maxlength="50" oninput="cawNameManuallyEdited=true">
+      <label class="text-xs text-[#495c52] block mb-1">Display Name</label>
+      <input type="text" id="caw-name" placeholder="e.g. Analytics" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 12px;color:#052415;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box" maxlength="50" oninput="cawNameManuallyEdited=true">
 
-      <label class="text-xs text-gray-400 block mb-1">Description</label>
-      <input type="text" id="caw-desc" placeholder="What this agent does" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box" maxlength="200">
+      <label class="text-xs text-[#495c52] block mb-1">Description</label>
+      <input type="text" id="caw-desc" placeholder="What this agent does" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 12px;color:#052415;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box" maxlength="200">
 
       <div class="flex gap-2 mb-3">
         <div style="flex:1">
-          <label class="text-xs text-gray-400 block mb-1">Model</label>
-          <select id="caw-model" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 10px;color:#e0e0e0;font-size:12px;outline:none">
+          <label class="text-xs text-[#495c52] block mb-1">Model</label>
+          <select id="caw-model" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 10px;color:#052415;font-size:12px;outline:none">
             <option value="claude-sonnet-4-6" selected>Sonnet 4.6</option>
             <option value="claude-opus-4-6">Opus 4.6</option>
             <option value="claude-haiku-4-5">Haiku 4.5</option>
           </select>
         </div>
         <div style="flex:1">
-          <label class="text-xs text-gray-400 block mb-1">Template</label>
-          <select id="caw-template" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 10px;color:#e0e0e0;font-size:12px;outline:none">
+          <label class="text-xs text-[#495c52] block mb-1">Template</label>
+          <select id="caw-template" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 10px;color:#052415;font-size:12px;outline:none">
             <option value="_template">Blank</option>
           </select>
         </div>
       </div>
 
       <div id="caw-step1-error" class="text-red-400 text-xs mb-2" style="display:none"></div>
-      <button onclick="cawGoStep2()" style="width:100%;background:#014421;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">Next: Set up Telegram bot</button>
+      <button onclick="cawGoStep2()" style="width:100%;background:#09321f;color:#f5efe9;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">Next: Set up Telegram bot</button>
     </div>
 
     <!-- Step 2: BotFather + Token -->
     <div id="caw-step-2" style="display:none">
-      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:14px;margin-bottom:12px">
-        <div class="text-xs text-gray-400 font-semibold uppercase mb-2">Create a Telegram bot</div>
-        <div class="text-xs text-gray-300 leading-relaxed">
-          1. Open <a href="https://t.me/BotFather" target="_blank" rel="noopener" style="color:#34d399;text-decoration:none">@BotFather</a> in Telegram<br>
-          2. Send <code style="background:#222;padding:1px 4px;border-radius:3px">/newbot</code><br>
-          3. Name it: <span id="caw-suggested-name" style="color:#a78bfa;cursor:pointer" onclick="copyToClipboard(this.textContent)" title="Click to copy"></span><br>
-          4. Username: <span id="caw-suggested-username" style="color:#a78bfa;cursor:pointer" onclick="copyToClipboard(this.textContent)" title="Click to copy"></span><br>
+      <div style="background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:10px;padding:14px;margin-bottom:12px">
+        <div class="text-xs text-[#495c52] font-semibold uppercase mb-2">Create a Telegram bot</div>
+        <div class="text-xs text-[#052415] leading-relaxed">
+          1. Open <a href="https://t.me/BotFather" target="_blank" rel="noopener" style="color:#7ea37e;text-decoration:none">@BotFather</a> in Telegram<br>
+          2. Send <code style="background:rgba(5,36,21,0.06);padding:1px 4px;border-radius:3px">/newbot</code><br>
+          3. Name it: <span id="caw-suggested-name" style="color:#7e97a3;cursor:pointer" onclick="copyToClipboard(this.textContent)" title="Click to copy"></span><br>
+          4. Username: <span id="caw-suggested-username" style="color:#7e97a3;cursor:pointer" onclick="copyToClipboard(this.textContent)" title="Click to copy"></span><br>
           5. Copy the token BotFather gives you
         </div>
       </div>
 
-      <label class="text-xs text-gray-400 block mb-1">Bot Token</label>
+      <label class="text-xs text-[#495c52] block mb-1">Bot Token</label>
       <div style="position:relative">
-        <input type="text" id="caw-token" placeholder="Paste token from BotFather" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 12px;padding-right:70px;color:#e0e0e0;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace" oninput="cawTokenChanged()">
+        <input type="text" id="caw-token" placeholder="Paste token from BotFather" style="width:100%;background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 12px;padding-right:70px;color:#052415;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace" oninput="cawTokenChanged()">
         <div id="caw-token-status" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px"></div>
       </div>
       <div id="caw-token-info" class="text-xs mt-2" style="min-height:16px"></div>
 
       <div class="flex gap-2 mt-3">
-        <button onclick="cawGoStep1()" style="flex:0 0 auto;background:#1a1a1a;color:#9ca3af;border:1px solid #2a2a2a;border-radius:8px;padding:10px 16px;font-size:13px;cursor:pointer">Back</button>
-        <button id="caw-create-btn" onclick="cawCreate()" style="flex:1;background:#014421;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;opacity:0.5;pointer-events:none">Create Agent</button>
+        <button onclick="cawGoStep1()" style="flex:0 0 auto;background:#f5efe9;color:#495c52;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:10px 16px;font-size:13px;cursor:pointer">Back</button>
+        <button id="caw-create-btn" onclick="cawCreate()" style="flex:1;background:#09321f;color:#f5efe9;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;opacity:0.5;pointer-events:none">Create Agent</button>
       </div>
       <div id="caw-step2-error" class="text-red-400 text-xs mt-2" style="display:none"></div>
     </div>
@@ -637,22 +726,22 @@ export function getDashboardHtml(token: string, chatId: string): string {
     <!-- Step 3: Confirmation + Activate -->
     <div id="caw-step-3" style="display:none">
       <div style="text-align:center;margin-bottom:16px">
-        <div style="width:48px;height:48px;border-radius:50%;background:#064e3b;margin:0 auto 8px;display:flex;align-items:center;justify-content:center">
-          <svg width="24" height="24" fill="none" stroke="#6ee7b7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <div style="width:48px;height:48px;border-radius:50%;background:rgba(126,163,126,0.15);margin:0 auto 8px;display:flex;align-items:center;justify-content:center">
+          <svg width="24" height="24" fill="none" stroke="#7ea37e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </div>
-        <div class="text-sm font-semibold text-white">Agent Created</div>
+        <div class="text-sm font-semibold text-[#052415]">Agent Created</div>
       </div>
 
-      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:14px;margin-bottom:12px">
-        <div id="caw-summary" class="text-xs text-gray-300 leading-relaxed"></div>
+      <div style="background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:10px;padding:14px;margin-bottom:12px">
+        <div id="caw-summary" class="text-xs text-[#052415] leading-relaxed"></div>
       </div>
 
       <div id="caw-activate-section">
-        <button id="caw-activate-btn" onclick="cawActivate()" style="width:100%;background:#064e3b;color:#6ee7b7;border:1px solid #065f46;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">Activate (install service + start)</button>
+        <button id="caw-activate-btn" onclick="cawActivate()" style="width:100%;background:rgba(126,163,126,0.12);color:#09321f;border:1px solid rgba(126,163,126,0.3);border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">Activate (install service + start)</button>
         <div id="caw-activate-status" class="text-xs text-center mt-2" style="min-height:16px"></div>
       </div>
 
-      <button onclick="closeCreateAgentWizard();loadAgents();loadMissionControl();" style="width:100%;background:#1a1a1a;color:#9ca3af;border:1px solid #2a2a2a;border-radius:8px;padding:8px;font-size:12px;cursor:pointer;margin-top:8px">Done</button>
+      <button onclick="closeCreateAgentWizard();loadAgents();loadMissionControl();" style="width:100%;background:#f5efe9;color:#495c52;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px;font-size:12px;cursor:pointer;margin-top:8px">Done</button>
     </div>
   </div>
 </div>
@@ -665,56 +754,56 @@ export function getDashboardHtml(token: string, chatId: string): string {
 
 <!-- Scheduled Tasks -->
 <div id="tasks-section">
-  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Scheduled Tasks<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Automated tasks scheduled by the bot (e.g. reminders, checks). Shows the schedule, status, and time until next run.</span></span><button class="privacy-toggle" onclick="toggleSectionBlur('tasks')" title="Toggle blur">&#128065;</button></h2>
-  <div id="tasks-container"><div class="card text-gray-500 text-sm">Loading...</div></div>
+  <h2 class="text-sm font-semibold text-[#495c52] uppercase tracking-wider mb-2">Scheduled Tasks<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Automated tasks scheduled by the bot (e.g. reminders, checks). Shows the schedule, status, and time until next run.</span></span><button class="privacy-toggle" onclick="toggleSectionBlur('tasks')" title="Toggle blur">&#128065;</button></h2>
+  <div id="tasks-container"><div class="card text-[#495c52] text-sm">Loading...</div></div>
 </div>
 
 <!-- Memory Landscape -->
 <div id="memory-section" class="mt-5">
-  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Memory Landscape</h2>
+  <h2 class="text-sm font-semibold text-[#495c52] uppercase tracking-wider mb-2">Memory Landscape</h2>
   <div class="grid grid-cols-3 gap-3 mb-3">
     <div class="card clickable-card text-center" onclick="openMemoryDrawer()" style="cursor:pointer">
       <div class="stat-val" id="mem-total">-</div>
       <div class="stat-label">Memories</div>
-      <div class="text-xs text-gray-600 mt-1">Tap to browse</div>
+      <div class="text-xs text-[#495c52] mt-1">Tap to browse</div>
     </div>
     <div class="card clickable-card text-center" onclick="openInsightsDrawer()" style="cursor:pointer">
       <div class="stat-val" id="mem-consolidations">-</div>
       <div class="stat-label">Insights</div>
-      <div class="text-xs text-gray-600 mt-1">Tap to browse</div>
+      <div class="text-xs text-[#495c52] mt-1">Tap to browse</div>
     </div>
     <div class="card clickable-card text-center" onclick="openPinnedDrawer()" style="cursor:pointer">
-      <div class="stat-val" id="mem-pinned" style="color:#34d399">-</div>
+      <div class="stat-val" id="mem-pinned" style="color:#7ea37e">-</div>
       <div class="stat-label">Pinned</div>
-      <div class="text-xs text-gray-600 mt-1">Tap to browse</div>
+      <div class="text-xs text-[#495c52] mt-1">Tap to browse</div>
     </div>
   </div>
   <div class="card">
-    <div class="text-xs text-gray-400 mb-2">Importance Distribution<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Distribution of memories by LLM-assigned importance (0-1). Higher = more critical to remember long-term.</span></span></div>
+    <div class="text-xs text-[#495c52] mb-2">Importance Distribution<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Distribution of memories by LLM-assigned importance (0-1). Higher = more critical to remember long-term.</span></span></div>
     <canvas id="importance-chart" height="120"></canvas>
   </div>
   <div class="card">
     <div class="flex items-center justify-between mb-1">
-      <div class="text-xs text-gray-400">Fading Soon <span class="text-gray-600">(salience &lt; 0.5)</span><span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Memories losing salience. High-importance ones decay slower; low-importance ones fade fast.</span></span></div>
-      <button class="text-xs text-gray-600 hover:text-gray-400 transition" onclick="openMemoryDrawer()">Browse all &rarr;</button>
+      <div class="text-xs text-[#495c52]">Fading Soon <span class="text-[#495c52]">(salience &lt; 0.5)</span><span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Memories losing salience. High-importance ones decay slower; low-importance ones fade fast.</span></span></div>
+      <button class="text-xs text-[#495c52] hover:text-[#495c52] transition" onclick="openMemoryDrawer()">Browse all &rarr;</button>
     </div>
     <div id="fading-list" class="text-sm"></div>
   </div>
   <div class="card">
     <div class="flex items-center justify-between mb-1">
-      <div class="text-xs text-gray-400">Recently Retrieved<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">High-importance memories recently used in conversations.</span></span></div>
-      <button class="text-xs text-gray-600 hover:text-gray-400 transition" onclick="openMemoryDrawer()">Browse all &rarr;</button>
+      <div class="text-xs text-[#495c52]">Recently Retrieved<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">High-importance memories recently used in conversations.</span></span></div>
+      <button class="text-xs text-[#495c52] hover:text-[#495c52] transition" onclick="openMemoryDrawer()">Browse all &rarr;</button>
     </div>
     <div id="top-accessed-list" class="text-sm"></div>
   </div>
   <div class="card">
     <div class="flex items-center justify-between mb-1">
-      <div class="text-xs text-gray-400">Recent Insights<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Patterns and connections discovered across memories by the consolidation engine.</span></span></div>
+      <div class="text-xs text-[#495c52]">Recent Insights<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Patterns and connections discovered across memories by the consolidation engine.</span></span></div>
     </div>
     <div id="insights-list" class="text-sm"></div>
   </div>
   <div class="card">
-    <div class="text-xs text-gray-400 mb-2">Memory Creation (30d)<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Number of new memories created per day over the last 30 days. Only meaningful exchanges get stored.</span></span></div>
+    <div class="text-xs text-[#495c52] mb-2">Memory Creation (30d)<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Number of new memories created per day over the last 30 days. Only meaningful exchanges get stored.</span></span></div>
     <canvas id="memory-timeline-chart" height="140"></canvas>
   </div>
 </div>
@@ -726,7 +815,7 @@ export function getDashboardHtml(token: string, chatId: string): string {
 
 <!-- System Health -->
 <div id="health-section" class="mt-5 lg:mt-0">
-  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">System Health</h2>
+  <h2 class="text-sm font-semibold text-[#495c52] uppercase tracking-wider mb-2">System Health</h2>
   <div class="card flex items-center gap-4">
     <div class="relative">
       <svg id="context-gauge" width="90" height="90" viewBox="0 0 90 90"></svg>
@@ -761,7 +850,7 @@ export function getDashboardHtml(token: string, chatId: string): string {
 
 <!-- Token / Cost -->
 <div id="token-section" class="mt-5 mb-8">
-  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2" id="tokens-section">Token Usage<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Token consumption (text units processed by the AI). Today's totals and all-time cumulative. Included in your Max subscription.</span></span></h2>
+  <h2 class="text-sm font-semibold text-[#495c52] uppercase tracking-wider mb-2" id="tokens-section">Token Usage<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Token consumption (text units processed by the AI). Today's totals and all-time cumulative. Included in your Max subscription.</span></span></h2>
   <div class="card">
     <div class="flex justify-between items-baseline">
       <div>
@@ -773,10 +862,10 @@ export function getDashboardHtml(token: string, chatId: string): string {
         <div class="stat-label">Turns today</div>
       </div>
     </div>
-    <div class="mt-2 text-xs text-gray-500">All-time: <span id="token-alltime-cost">-</span> tokens across <span id="token-alltime-turns">-</span> turns</div>
+    <div class="mt-2 text-xs text-[#495c52]">All-time: <span id="token-alltime-cost">-</span> tokens across <span id="token-alltime-turns">-</span> turns</div>
   </div>
   <div class="card">
-    <div class="text-xs text-gray-400 mb-2">Usage Timeline (30d)<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Daily token usage over the last 30 days.</span></span></div>
+    <div class="text-xs text-[#495c52] mb-2">Usage Timeline (30d)<span class="info-tip"><span class="info-icon">\u24D8</span><span class="info-tooltip">Daily token usage over the last 30 days.</span></span></div>
     <canvas id="cost-chart" height="140"></canvas>
   </div>
 
@@ -792,15 +881,15 @@ export function getDashboardHtml(token: string, chatId: string): string {
 <div id="main-tab-database" style="display:none">
   <div class="db-layout">
     <div class="db-sidebar" id="db-sidebar">
-      <div style="padding:8px 14px;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Tables</div>
-      <div id="db-table-list"><div style="padding:8px 14px;color:#555;font-size:12px">Loading...</div></div>
+      <div style="padding:8px 14px;font-size:11px;color:#495c52;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Tables</div>
+      <div id="db-table-list"><div style="padding:8px 14px;color:#495c52;font-size:12px">Loading...</div></div>
     </div>
     <div>
       <div class="db-grid-wrapper">
         <div class="db-grid-scroll" id="db-grid-scroll">
           <table class="db-grid" id="db-grid">
             <thead id="db-grid-head"></thead>
-            <tbody id="db-grid-body"><tr><td style="padding:20px;color:#555">Select a table</td></tr></tbody>
+            <tbody id="db-grid-body"><tr><td style="padding:20px;color:#495c52">Select a table</td></tr></tbody>
           </table>
         </div>
         <div class="db-pagination" id="db-pagination" style="display:none">
@@ -828,15 +917,15 @@ export function getDashboardHtml(token: string, chatId: string): string {
 <div id="main-tab-supabase" style="display:none">
   <div class="db-layout">
     <div class="db-sidebar" id="sb-sidebar">
-      <div style="padding:8px 14px;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Supabase Tables</div>
-      <div id="sb-table-list"><div style="padding:8px 14px;color:#555;font-size:12px">Loading...</div></div>
+      <div style="padding:8px 14px;font-size:11px;color:#495c52;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Supabase Tables</div>
+      <div id="sb-table-list"><div style="padding:8px 14px;color:#495c52;font-size:12px">Loading...</div></div>
     </div>
     <div>
       <div class="db-grid-wrapper">
         <div class="db-grid-scroll" id="sb-grid-scroll">
           <table class="db-grid" id="sb-grid">
             <thead id="sb-grid-head"></thead>
-            <tbody id="sb-grid-body"><tr><td style="padding:20px;color:#555">Select a table</td></tr></tbody>
+            <tbody id="sb-grid-body"><tr><td style="padding:20px;color:#495c52">Select a table</td></tr></tbody>
           </table>
         </div>
         <div class="db-pagination" id="sb-pagination" style="display:none">
@@ -882,17 +971,17 @@ export function getDashboardHtml(token: string, chatId: string): string {
 <div id="drawer" class="drawer">
   <div class="drawer-handle"></div>
   <div class="flex items-center justify-between px-4 pt-3 pb-1">
-    <h3 class="text-base font-bold text-white" id="drawer-title">Memories</h3>
-    <button onclick="closeDrawer()" class="text-gray-500 hover:text-white text-xl leading-none">&times;</button>
+    <h3 class="text-base font-bold text-[#052415]" id="drawer-title">Memories</h3>
+    <button onclick="closeDrawer()" class="text-[#495c52] hover:text-[#052415] text-xl leading-none">&times;</button>
   </div>
   <div class="px-4 pb-2 flex items-center gap-2">
-    <span class="text-xs text-gray-500" id="drawer-count"></span>
-    <span class="text-xs text-gray-600">|</span>
-    <span class="text-xs text-gray-500" id="drawer-avg-salience"></span>
+    <span class="text-xs text-[#495c52]" id="drawer-count"></span>
+    <span class="text-xs text-[#495c52]">|</span>
+    <span class="text-xs text-[#495c52]" id="drawer-avg-salience"></span>
   </div>
   <div class="drawer-body" id="drawer-body"></div>
   <div id="drawer-load-more" class="px-4 pb-4 hidden">
-    <button onclick="loadMoreMemories()" class="w-full py-2 text-sm text-gray-400 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg hover:text-white transition">Load more</button>
+    <button onclick="loadMoreMemories()" class="w-full py-2 text-sm text-[#495c52] bg-[#f5efe9] border border-[rgba(5,36,21,0.08)] rounded-lg hover:text-[#052415] transition">Load more</button>
   </div>
 </div>
 
@@ -901,13 +990,13 @@ export function getDashboardHtml(token: string, chatId: string): string {
 <div id="history-drawer" class="drawer">
   <div class="drawer-handle"></div>
   <div class="flex items-center justify-between px-4 pt-3 pb-1">
-    <h3 class="text-base font-bold text-white">Task History</h3>
-    <button onclick="closeTaskHistory()" class="text-gray-500 hover:text-white text-xl leading-none">&times;</button>
+    <h3 class="text-base font-bold text-[#052415]">Task History</h3>
+    <button onclick="closeTaskHistory()" class="text-[#495c52] hover:text-[#052415] text-xl leading-none">&times;</button>
   </div>
-  <div class="px-4 pb-2"><span class="text-xs text-gray-500" id="history-count"></span></div>
+  <div class="px-4 pb-2"><span class="text-xs text-[#495c52]" id="history-count"></span></div>
   <div class="drawer-body" id="history-body"></div>
   <div id="history-load-more" class="px-4 pb-4 hidden">
-    <button onclick="loadMoreHistory()" class="w-full py-2 text-sm text-gray-400 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg hover:text-white transition">Load more</button>
+    <button onclick="loadMoreHistory()" class="w-full py-2 text-sm text-[#495c52] bg-[#f5efe9] border border-[rgba(5,36,21,0.08)] rounded-lg hover:text-[#052415] transition">Load more</button>
   </div>
 </div>
 
@@ -974,8 +1063,8 @@ let drawerTotal = 0;
 const DRAWER_PAGE = 30;
 
 function salienceColor(s) {
-  if (s >= 4) return '#10b981';
-  if (s >= 3) return '#22c55e';
+  if (s >= 4) return '#7ea37e';
+  if (s >= 3) return '#7ea37e';
   if (s >= 2) return '#84cc16';
   if (s >= 1) return '#eab308';
   if (s >= 0.5) return '#f97316';
@@ -994,18 +1083,18 @@ function renderMemoryItem(m) {
   try { entities = JSON.parse(m.entities); } catch {}
   try { topics = JSON.parse(m.topics); } catch {}
   try { connections = JSON.parse(m.connections); } catch {}
-  const topicTags = topics.length > 0 ? '<div class="mt-1">' + topics.map(t => '<span style="background:#1e293b;padding:1px 6px;border-radius:4px;margin-right:3px;font-size:11px;color:#94a3b8">' + escapeHtml(t) + '</span>').join('') + '</div>' : '';
-  const entityLine = entities.length > 0 ? '<div class="text-xs text-gray-600 mt-1">entities: ' + escapeHtml(entities.join(', ')) + '</div>' : '';
-  const connLine = connections.length > 0 ? '<div class="text-xs text-gray-600 mt-1">linked to: ' + connections.map(c => '#' + c.linked_to + ' (' + escapeHtml(c.relationship || '') + ')').join(', ') + '</div>' : '';
+  const topicTags = topics.length > 0 ? '<div class="mt-1">' + topics.map(t => '<span style="background:rgba(5,36,21,0.06);padding:1px 6px;border-radius:4px;margin-right:3px;font-size:11px;color:#495c52">' + escapeHtml(t) + '</span>').join('') + '</div>' : '';
+  const entityLine = entities.length > 0 ? '<div class="text-xs text-[#495c52] mt-1">entities: ' + escapeHtml(entities.join(', ')) + '</div>' : '';
+  const connLine = connections.length > 0 ? '<div class="text-xs text-[#495c52] mt-1">linked to: ' + connections.map(c => '#' + c.linked_to + ' (' + escapeHtml(c.relationship || '') + ')').join(', ') + '</div>' : '';
 
   return '<div class="mem-item" onclick="this.classList.toggle(&quot;expanded&quot;)">' +
     '<div class="flex items-center gap-2 mb-1">' +
       '<span class="salience-dot" style="background:' + importanceColor(m.importance) + '"></span>' +
       '<span class="text-xs font-semibold" style="color:' + importanceColor(m.importance) + '">' + m.importance.toFixed(2) + '</span>' +
-      '<span class="text-xs text-gray-700 ml-1">sal ' + m.salience.toFixed(2) + '</span>' +
-      '<span class="text-xs text-gray-600 ml-auto">' + formatDate(m.created_at) + '</span>' +
+      '<span class="text-xs text-[#495c52] ml-1">sal ' + m.salience.toFixed(2) + '</span>' +
+      '<span class="text-xs text-[#495c52] ml-auto">' + formatDate(m.created_at) + '</span>' +
     '</div>' +
-    '<div class="text-sm text-gray-300 mem-content">' + escapeHtml(m.summary) + '</div>' +
+    '<div class="text-sm text-[#052415] mem-content">' + escapeHtml(m.summary) + '</div>' +
     topicTags +
     entityLine +
     connLine +
@@ -1015,7 +1104,7 @@ function renderMemoryItem(m) {
 async function openMemoryDrawer() {
   drawerOffset = 0;
   document.getElementById('drawer-title').textContent = 'All Memories';
-  document.getElementById('drawer-body').innerHTML = '<div class="text-gray-500 text-sm text-center py-8">Loading...</div>';
+  document.getElementById('drawer-body').innerHTML = '<div class="text-[#495c52] text-sm text-center py-8">Loading...</div>';
   document.getElementById('drawer-overlay').classList.add('open');
   document.getElementById('drawer').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -1026,7 +1115,7 @@ async function openPinnedDrawer() {
   document.getElementById('drawer-title').textContent = 'Pinned Memories';
   document.getElementById('drawer-count').textContent = '';
   document.getElementById('drawer-avg-salience').textContent = '';
-  document.getElementById('drawer-body').innerHTML = '<div class="text-gray-500 text-sm text-center py-8">Loading...</div>';
+  document.getElementById('drawer-body').innerHTML = '<div class="text-[#495c52] text-sm text-center py-8">Loading...</div>';
   document.getElementById('drawer-load-more').classList.add('hidden');
   document.getElementById('drawer-overlay').classList.add('open');
   document.getElementById('drawer').classList.add('open');
@@ -1036,7 +1125,7 @@ async function openPinnedDrawer() {
     var mems = data.memories || [];
     document.getElementById('drawer-count').textContent = mems.length + ' pinned';
     if (mems.length === 0) {
-      document.getElementById('drawer-body').innerHTML = '<div class="text-gray-500 text-sm text-center py-8">No pinned memories. Use /pin to make important memories permanent.</div>';
+      document.getElementById('drawer-body').innerHTML = '<div class="text-[#495c52] text-sm text-center py-8">No pinned memories. Use /pin to make important memories permanent.</div>';
       return;
     }
     document.getElementById('drawer-body').innerHTML = mems.map(renderMemoryItem).join('');
@@ -1049,7 +1138,7 @@ async function openInsightsDrawer() {
   document.getElementById('drawer-title').textContent = 'Consolidation Insights';
   document.getElementById('drawer-count').textContent = '';
   document.getElementById('drawer-avg-salience').textContent = '';
-  document.getElementById('drawer-body').innerHTML = '<div class="text-gray-500 text-sm text-center py-8">Loading...</div>';
+  document.getElementById('drawer-body').innerHTML = '<div class="text-[#495c52] text-sm text-center py-8">Loading...</div>';
   document.getElementById('drawer-load-more').classList.add('hidden');
   document.getElementById('drawer-overlay').classList.add('open');
   document.getElementById('drawer').classList.add('open');
@@ -1059,15 +1148,15 @@ async function openInsightsDrawer() {
     var insights = data.consolidations || [];
     document.getElementById('drawer-count').textContent = insights.length + ' insights';
     if (insights.length === 0) {
-      document.getElementById('drawer-body').innerHTML = '<div class="text-gray-500 text-sm text-center py-8">No insights yet. Consolidation runs every 30 minutes.</div>';
+      document.getElementById('drawer-body').innerHTML = '<div class="text-[#495c52] text-sm text-center py-8">No insights yet. Consolidation runs every 30 minutes.</div>';
       return;
     }
     document.getElementById('drawer-body').innerHTML = insights.map(function(c) {
       var date = new Date(c.created_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      return '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:12px;margin-bottom:8px">' +
-        '<div class="text-xs text-green-400 mb-1">' + date + '</div>' +
-        '<div class="text-sm text-white mb-2">' + escapeHtml(c.insight || c.summary) + '</div>' +
-        (c.summary && c.insight ? '<div class="text-xs text-gray-500">' + escapeHtml(c.summary) + '</div>' : '') +
+      return '<div style="background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:12px;margin-bottom:8px">' +
+        '<div class="text-xs text-[#7ea37e] mb-1">' + date + '</div>' +
+        '<div class="text-sm text-[#052415] mb-2">' + escapeHtml(c.insight || c.summary) + '</div>' +
+        (c.summary && c.insight ? '<div class="text-xs text-[#495c52]">' + escapeHtml(c.summary) + '</div>' : '') +
       '</div>';
     }).join('');
   } catch(e) {
@@ -1165,24 +1254,24 @@ async function loadTasks() {
     const data = await api('/api/tasks');
     const c = document.getElementById('tasks-container');
     if (!data.tasks || data.tasks.length === 0) {
-      c.innerHTML = '<div class="card text-gray-500 text-sm">No scheduled tasks</div>';
+      c.innerHTML = '<div class="card text-[#495c52] text-sm">No scheduled tasks</div>';
       return;
     }
     c.innerHTML = data.tasks.map(t => {
       const statusCls = t.status === 'running' ? 'pill-running' : t.status === 'active' ? 'pill-active' : 'pill-paused';
-      const agentBadge = t.agent_id && t.agent_id !== 'main' ? '<span class="text-xs text-gray-500 ml-2">[' + t.agent_id + ']</span>' : '';
+      const agentBadge = t.agent_id && t.agent_id !== 'main' ? '<span class="text-xs text-[#495c52] ml-2">[' + t.agent_id + ']</span>' : '';
       const lastStatusIcon = t.last_status === 'success' ? '<span class="last-success" title="Last run succeeded">&#10003;</span> ' : t.last_status === 'failed' ? '<span class="last-failed" title="Last run failed">&#10007;</span> ' : t.last_status === 'timeout' ? '<span class="last-timeout" title="Last run timed out">&#9200;</span> ' : '';
-      const lastResult = t.last_result ? '<details class="mt-2"><summary class="text-xs text-gray-500">' + lastStatusIcon + 'Last result</summary><pre class="text-xs text-gray-400 mt-1 whitespace-pre-wrap break-words">' + escapeHtml(t.last_result) + '</pre></details>' : '';
-      const runningInfo = t.status === 'running' && t.started_at ? '<span class="text-xs text-green-400 ml-2">running for ' + elapsed(t.started_at) + '</span>' : '';
+      const lastResult = t.last_result ? '<details class="mt-2"><summary class="text-xs text-[#495c52]">' + lastStatusIcon + 'Last result</summary><pre class="text-xs text-[#495c52] mt-1 whitespace-pre-wrap break-words">' + escapeHtml(t.last_result) + '</pre></details>' : '';
+      const runningInfo = t.status === 'running' && t.started_at ? '<span class="text-xs text-[#7ea37e] ml-2">running for ' + elapsed(t.started_at) + '</span>' : '';
       const pauseBtn = t.status === 'active'
-        ? '<button data-task="' + t.id + '" data-action="pause" onclick="taskAction(this.dataset.task,this.dataset.action)" title="Pause" style="background:none;border:none;cursor:pointer;color:#fbbf24;font-size:14px;padding:2px 4px">&#9208;</button>'
-        : t.status === 'paused' ? '<button data-task="' + t.id + '" data-action="resume" onclick="taskAction(this.dataset.task,this.dataset.action)" title="Resume" style="background:none;border:none;cursor:pointer;color:#6ee7b7;font-size:14px;padding:2px 4px">&#9654;</button>' : '';
+        ? '<button data-task="' + t.id + '" data-action="pause" onclick="taskAction(this.dataset.task,this.dataset.action)" title="Pause" style="background:none;border:none;cursor:pointer;color:#b8860b;font-size:14px;padding:2px 4px">&#9208;</button>'
+        : t.status === 'paused' ? '<button data-task="' + t.id + '" data-action="resume" onclick="taskAction(this.dataset.task,this.dataset.action)" title="Resume" style="background:none;border:none;cursor:pointer;color:#7ea37e;font-size:14px;padding:2px 4px">&#9654;</button>' : '';
       const deleteBtn = '<button data-task="' + t.id + '" data-action="delete" onclick="taskAction(this.dataset.task,this.dataset.action)" title="Delete" style="background:none;border:none;cursor:pointer;color:#f87171;font-size:14px;padding:2px 4px">&times;</button>';
       const taskBlurState = JSON.parse(localStorage.getItem('privacyBlur_tasks') || '{}');
       const tasksAllRevealed = localStorage.getItem('privacyBlur_tasks_all') === 'revealed';
       const taskBlurred = tasksAllRevealed ? false : (taskBlurState[t.id] !== false);
       const taskBlurClass = taskBlurred ? 'privacy-blur' : '';
-      return '<div class="card"><div class="flex justify-between items-start"><div class="flex-1 mr-2"><div class="text-sm text-white task-prompt ' + taskBlurClass + '" data-section="tasks" data-idx="' + t.id + '" onclick="toggleItemBlur(this)">' + escapeHtml(t.prompt) + '</div>' + agentBadge + '<div class="text-xs text-gray-500 mt-1">' + cronToHuman(t.schedule) + ' &middot; next in <span class="countdown" data-ts="' + t.next_run + '">' + countdown(t.next_run) + '</span>' + runningInfo + '</div></div><div class="flex items-center gap-1">' + pauseBtn + deleteBtn + '<span class="pill ' + statusCls + '">' + t.status + '</span></div></div>' + lastResult + '</div>';
+      return '<div class="card"><div class="flex justify-between items-start"><div class="flex-1 mr-2"><div class="text-sm text-[#052415] task-prompt ' + taskBlurClass + '" data-section="tasks" data-idx="' + t.id + '" onclick="toggleItemBlur(this)">' + escapeHtml(t.prompt) + '</div>' + agentBadge + '<div class="text-xs text-[#495c52] mt-1">' + cronToHuman(t.schedule) + ' &middot; next in <span class="countdown" data-ts="' + t.next_run + '">' + countdown(t.next_run) + '</span>' + runningInfo + '</div></div><div class="flex items-center gap-1">' + pauseBtn + deleteBtn + '<span class="pill ' + statusCls + '">' + t.status + '</span></div></div>' + lastResult + '</div>';
     }).join('');
   } catch(e) {
     document.getElementById('tasks-container').innerHTML = '<div class="card text-red-400 text-sm">Failed to load tasks</div>';
@@ -1190,8 +1279,8 @@ async function loadTasks() {
 }
 
 function importanceColor(imp) {
-  if (imp >= 0.8) return '#10b981';
-  if (imp >= 0.6) return '#22c55e';
+  if (imp >= 0.8) return '#7ea37e';
+  if (imp >= 0.6) return '#7ea37e';
   if (imp >= 0.4) return '#eab308';
   if (imp >= 0.2) return '#f97316';
   return '#ef4444';
@@ -1201,7 +1290,7 @@ function renderTopics(topicsJson) {
   try {
     const topics = JSON.parse(topicsJson);
     if (!topics.length) return '';
-    return '<div class="text-xs text-gray-600 mt-0.5">' + topics.map(t => '<span style="background:#1e293b;padding:1px 6px;border-radius:4px;margin-right:3px">' + escapeHtml(t) + '</span>').join('') + '</div>';
+    return '<div class="text-xs text-[#495c52] mt-0.5">' + topics.map(t => '<span style="background:rgba(5,36,21,0.06);padding:1px 6px;border-radius:4px;margin-right:3px">' + escapeHtml(t) + '</span>').join('') + '</div>';
   } catch { return ''; }
 }
 
@@ -1214,7 +1303,7 @@ async function loadMemories() {
 
     // Importance distribution chart
     const bucketLabels = ['0-0.2','0.2-0.4','0.4-0.6','0.6-0.8','0.8-1.0'];
-    const bucketColors = ['#ef4444','#f97316','#eab308','#22c55e','#10b981'];
+    const bucketColors = ['#ef4444','#f97316','#eab308','#7ea37e','#7ea37e'];
     const bucketData = bucketLabels.map(b => {
       const found = data.stats.importanceDistribution.find(d => d.bucket === b);
       return found ? found.count : 0;
@@ -1223,13 +1312,13 @@ async function loadMemories() {
     salienceChart = new Chart(document.getElementById('importance-chart'), {
       type: 'bar',
       data: { labels: bucketLabels, datasets: [{ data: bucketData, backgroundColor: bucketColors, borderRadius: 4 }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#666' }, grid: { color: '#222' } }, x: { ticks: { color: '#666' }, grid: { display: false } } } }
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#495c52' }, grid: { color: 'rgba(5,36,21,0.06)' } }, x: { ticks: { color: '#495c52' }, grid: { display: false } } } }
     });
 
     // Fading
     const fading = document.getElementById('fading-list');
     if (data.fading.length === 0) {
-      fading.innerHTML = '<span class="text-gray-600">None fading</span>';
+      fading.innerHTML = '<span class="text-[#495c52]">None fading</span>';
     } else {
       fading.innerHTML = data.fading.map(m => '<div class="fade-text py-0.5 mem-expand" onclick="this.classList.toggle(&quot;open&quot;)"><span class="mem-preview"><span style="color:' + importanceColor(m.importance) + '">[' + m.importance.toFixed(1) + ']</span> ' + escapeHtml(m.summary.slice(0,80)) + (m.summary.length > 80 ? '...' : '') + '</span><div class="mem-full">' + escapeHtml(m.summary) + renderTopics(m.topics) + '</div></div>').join('');
     }
@@ -1237,7 +1326,7 @@ async function loadMemories() {
     // Top accessed
     const top = document.getElementById('top-accessed-list');
     if (data.topAccessed.length === 0) {
-      top.innerHTML = '<span class="text-gray-600">No memories yet</span>';
+      top.innerHTML = '<span class="text-[#495c52]">No memories yet</span>';
     } else {
       top.innerHTML = data.topAccessed.map(m => '<div class="top-text py-0.5 mem-expand" onclick="this.classList.toggle(&quot;open&quot;)"><span class="mem-preview"><span style="color:' + importanceColor(m.importance) + '">[' + m.importance.toFixed(1) + ']</span> ' + escapeHtml(m.summary.slice(0,80)) + (m.summary.length > 80 ? '...' : '') + '</span><div class="mem-full">' + escapeHtml(m.summary) + renderTopics(m.topics) + '</div></div>').join('');
     }
@@ -1245,9 +1334,9 @@ async function loadMemories() {
     // Insights
     const insights = document.getElementById('insights-list');
     if (!data.consolidations || data.consolidations.length === 0) {
-      insights.innerHTML = '<span class="text-gray-600">No insights yet</span>';
+      insights.innerHTML = '<span class="text-[#495c52]">No insights yet</span>';
     } else {
-      insights.innerHTML = data.consolidations.map(c => '<div class="py-1 mem-expand" onclick="this.classList.toggle(&quot;open&quot;)"><span class="mem-preview" style="color:#a78bfa">' + escapeHtml(c.insight.slice(0,100)) + (c.insight.length > 100 ? '...' : '') + '</span><div class="mem-full" style="color:#d4d4d8">' + escapeHtml(c.summary) + '<div class="text-xs text-gray-600 mt-1">' + formatDate(c.created_at) + '</div></div></div>').join('');
+      insights.innerHTML = data.consolidations.map(c => '<div class="py-1 mem-expand" onclick="this.classList.toggle(&quot;open&quot;)"><span class="mem-preview" style="color:#7e97a3">' + escapeHtml(c.insight.slice(0,100)) + (c.insight.length > 100 ? '...' : '') + '</span><div class="mem-full" style="color:#052415">' + escapeHtml(c.summary) + '<div class="text-xs text-[#495c52] mt-1">' + formatDate(c.created_at) + '</div></div></div>').join('');
     }
 
     // Timeline
@@ -1258,10 +1347,10 @@ async function loadMemories() {
         data: {
           labels: data.timeline.map(d => d.date.slice(5)),
           datasets: [
-            { label: 'Memories', data: data.timeline.map(d => d.count), borderColor: '#028a45', backgroundColor: 'rgba(2,138,69,0.1)', fill: true, tension: 0.3 }
+            { label: 'Memories', data: data.timeline.map(d => d.count), borderColor: '#7ea37e', backgroundColor: 'rgba(126,163,126,0.1)', fill: true, tension: 0.3 }
           ]
         },
-        options: { responsive: true, plugins: { legend: { labels: { color: '#888', boxWidth: 12 } } }, scales: { y: { ticks: { color: '#666' }, grid: { color: '#222' } }, x: { ticks: { color: '#666', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } } } }
+        options: { responsive: true, plugins: { legend: { labels: { color: '#495c52', boxWidth: 12 } } }, scales: { y: { ticks: { color: '#495c52' }, grid: { color: 'rgba(5,36,21,0.06)' } }, x: { ticks: { color: '#495c52', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } } } }
       });
     }
   } catch(e) {
@@ -1275,11 +1364,11 @@ function drawGauge(pct) {
   const circ = 2 * Math.PI * r;
   const clampedPct = Math.min(Math.max(pct, 0), 100);
   const dashOffset = circ - (circ * clampedPct / 100);
-  let color = '#22c55e';
+  let color = '#7ea37e';
   if (clampedPct >= 75) color = '#ef4444';
   else if (clampedPct >= 50) color = '#f59e0b';
   svg.innerHTML =
-    '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#2a2a2a" stroke-width="'+sw+'"/>' +
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="rgba(5,36,21,0.1)" stroke-width="'+sw+'"/>' +
     '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+sw+'" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+dashOffset+'" transform="rotate(-90 '+cx+' '+cy+')"/>' +
     '<text x="'+cx+'" y="'+cy+'" text-anchor="middle" dominant-baseline="central" fill="'+color+'" font-size="16" font-weight="700">'+clampedPct+'%</text>';
 }
@@ -1343,9 +1432,9 @@ async function loadTokens() {
         type: 'line',
         data: {
           labels: data.costTimeline.map(d => d.date.slice(5)),
-          datasets: [{ label: 'Turns', data: data.costTimeline.map(d => d.turns), borderColor: '#028a45', backgroundColor: 'rgba(2,138,69,0.1)', fill: true, tension: 0.3, pointRadius: 2 }]
+          datasets: [{ label: 'Turns', data: data.costTimeline.map(d => d.turns), borderColor: '#7ea37e', backgroundColor: 'rgba(126,163,126,0.1)', fill: true, tension: 0.3, pointRadius: 2 }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#666' }, grid: { color: '#222' } }, x: { ticks: { color: '#666', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } } } }
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#495c52' }, grid: { color: 'rgba(5,36,21,0.06)' } }, x: { ticks: { color: '#495c52', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } } } }
       });
     }
 
@@ -1366,8 +1455,8 @@ async function loadInfo() {
     const d = await r.json();
     const el = document.getElementById('bot-info');
     const parts = [];
-    if (d.botName) parts.push('<span class="font-semibold text-white">' + d.botName + '</span>');
-    el.innerHTML = parts.join(' <span class="text-gray-700">|</span> ');
+    if (d.botName) parts.push('<span class="font-semibold text-[#052415]">' + d.botName + '</span>');
+    el.innerHTML = parts.join(' <span class="text-[#495c52]">|</span> ');
   } catch {}
 }
 
@@ -1393,7 +1482,7 @@ document.addEventListener('click', function(e) {
 }, true);
 
 // ── Agent & Hive Mind ────────────────────────────────────────────────
-const AGENT_COLORS = { main: '#014421', comms: '#0ea5e9', content: '#f59e0b', ops: '#10b981', research: '#028a45' };
+const AGENT_COLORS = { main: '#09321f', comms: '#0ea5e9', content: '#f59e0b', ops: '#7ea37e', research: '#7ea37e' };
 
 async function loadAgents() {
   try {
@@ -1403,12 +1492,12 @@ async function loadAgents() {
     // Always show agents section so "+ New Agent" button is accessible
     section.style.display = '';
     if (!data.agents || data.agents.length <= 1) {
-      container.innerHTML = '<div class="text-xs text-gray-600 py-2">No agents yet. Click + New Agent to create one.</div>';
+      container.innerHTML = '<div class="text-xs text-[#495c52] py-2">No agents yet. Click + New Agent to create one.</div>';
       return;
     }
     container.innerHTML = data.agents.map(a => {
       const color = AGENT_COLORS[a.id] || '#6b7280';
-      const dot = a.running ? '<span style="color:#6ee7b7">\u25CF</span>' : '<span style="color:#666">\u25CB</span>';
+      const dot = a.running ? '<span style="color:#7ea37e">\u25CF</span>' : '<span style="color:#495c52">\u25CB</span>';
       const statusText = a.running ? 'live' : 'off';
       const modelOpts = ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-haiku-4-5'];
       const modelShort = function(m) { return {'claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-sonnet-4-5':'Sonnet 4.5','claude-haiku-4-5':'Haiku'}[m] || m; };
@@ -1421,10 +1510,10 @@ async function loadAgents() {
         '</div>' +
       '</div>';
       return '<div class="card clickable-card" style="min-width:130px;flex:1;max-width:220px;border-left:3px solid ' + color + '" data-agent="' + a.id + '" onclick="toggleAgentDetail(this.dataset.agent)">' +
-        '<div class="font-bold text-white text-sm">' + a.name + '</div>' +
+        '<div class="font-bold text-[#052415] text-sm">' + a.name + '</div>' +
         '<div class="text-xs mt-1">' + dot + ' ' + statusText + '</div>' +
         modelSelect +
-        (a.running ? '<div class="text-xs text-gray-400 mt-1">' + a.todayTurns + ' turns</div>' : '') +
+        (a.running ? '<div class="text-xs text-[#495c52] mt-1">' + a.todayTurns + ' turns</div>' : '') +
       '</div>';
     }).join('');
   } catch {}
@@ -1483,7 +1572,7 @@ async function toggleAgentDetail(agentId) {
   var agent = missionAgentsList.find(function(a) { return a.id === agentId; });
   var color = AGENT_COLORS[agentId] || '#6b7280';
   title.innerHTML = '<span style="color:' + color + '">' + (agent ? agent.name : agentId) + '</span>';
-  body.innerHTML = '<div class="text-gray-500 text-sm text-center py-8">Loading...</div>';
+  body.innerHTML = '<div class="text-[#495c52] text-sm text-center py-8">Loading...</div>';
 
   overlay.style.opacity = '1';
   overlay.style.pointerEvents = 'auto';
@@ -1502,52 +1591,52 @@ async function toggleAgentDetail(agentId) {
 
     // Last conversation
     if (convo.turns && convo.turns.length > 0) {
-      html += '<div class="text-xs text-gray-400 font-semibold mb-2 uppercase">Recent conversation</div>';
+      html += '<div class="text-xs text-[#495c52] font-semibold mb-2 uppercase">Recent conversation</div>';
       var sorted = convo.turns.slice().reverse();
       html += sorted.map(function(t) {
-        var role = t.role === 'user' ? '<span style="color:#34d399">You</span>' : '<span style="color:#6ee7b7">Agent</span>';
+        var role = t.role === 'user' ? '<span style="color:#7ea37e">You</span>' : '<span style="color:#7ea37e">Agent</span>';
         var text = t.content.length > 200 ? t.content.slice(0, 200) + '...' : t.content;
-        return '<div style="background:#1a1a1a;border-radius:6px;padding:8px;margin-bottom:4px">' +
+        return '<div style="background:#f5efe9;border-radius:6px;padding:8px;margin-bottom:4px">' +
           '<div class="text-xs" style="margin-bottom:2px">' + role + '</div>' +
-          '<div class="text-xs text-gray-400">' + escapeHtml(text) + '</div></div>';
+          '<div class="text-xs text-[#495c52]">' + escapeHtml(text) + '</div></div>';
       }).join('');
     }
 
     // Hive mind activity
     if (hive.entries && hive.entries.length > 0) {
-      html += '<div class="text-xs text-gray-400 font-semibold mt-3 mb-2 uppercase">Hive Mind activity</div>';
+      html += '<div class="text-xs text-[#495c52] font-semibold mt-3 mb-2 uppercase">Hive Mind activity</div>';
       html += hive.entries.map(function(e) {
         var time = new Date(e.created_at * 1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-        return '<div style="background:#1a1a1a;border-radius:6px;padding:8px;margin-bottom:4px">' +
-          '<span class="text-xs text-gray-500">' + time + '</span> ' +
-          '<span class="text-xs text-gray-400">' + escapeHtml(e.summary) + '</span></div>';
+        return '<div style="background:#f5efe9;border-radius:6px;padding:8px;margin-bottom:4px">' +
+          '<span class="text-xs text-[#495c52]">' + time + '</span> ' +
+          '<span class="text-xs text-[#495c52]">' + escapeHtml(e.summary) + '</span></div>';
       }).join('');
     }
 
     // Scheduled tasks
     if (tasks.tasks && tasks.tasks.length > 0) {
-      html += '<div class="text-xs text-gray-400 font-semibold mt-3 mb-2 uppercase">Scheduled tasks (' + tasks.tasks.length + ')</div>';
+      html += '<div class="text-xs text-[#495c52] font-semibold mt-3 mb-2 uppercase">Scheduled tasks (' + tasks.tasks.length + ')</div>';
       html += tasks.tasks.slice(0, 5).map(function(t) {
-        return '<div style="background:#1a1a1a;border-radius:6px;padding:8px;margin-bottom:4px">' +
-          '<div class="text-xs text-gray-300">' + escapeHtml(t.prompt.slice(0, 100)) + '</div>' +
-          '<div class="text-xs text-gray-600 mt-1">' + t.schedule + '</div></div>';
+        return '<div style="background:#f5efe9;border-radius:6px;padding:8px;margin-bottom:4px">' +
+          '<div class="text-xs text-[#052415]">' + escapeHtml(t.prompt.slice(0, 100)) + '</div>' +
+          '<div class="text-xs text-[#495c52] mt-1">' + t.schedule + '</div></div>';
       }).join('');
     }
 
     // Agent management controls (not for main)
     if (agentId !== 'main') {
-      html += '<div class="flex gap-2 mt-4 pt-3" style="border-top:1px solid #2a2a2a">';
+      html += '<div class="flex gap-2 mt-4 pt-3" style="border-top:1px solid rgba(5,36,21,0.08)">';
       if (agent && agent.running) {
-        html += '<button data-agent="' + agentId + '" data-act="stop" onclick="agentModalAction(this.dataset.agent,this.dataset.act)" style="flex:1;background:#1a1a1a;color:#f87171;border:1px solid #7f1d1d;border-radius:8px;padding:8px;font-size:12px;font-weight:600;cursor:pointer">Stop</button>';
+        html += '<button data-agent="' + agentId + '" data-act="stop" onclick="agentModalAction(this.dataset.agent,this.dataset.act)" style="flex:1;background:#fff5f5;color:#dc2626;border:1px solid rgba(220,38,38,0.2);border-radius:8px;padding:8px;font-size:12px;font-weight:600;cursor:pointer">Stop</button>';
       } else {
-        html += '<button data-agent="' + agentId + '" data-act="start" onclick="agentModalAction(this.dataset.agent,this.dataset.act)" style="flex:1;background:#064e3b;color:#6ee7b7;border:1px solid #065f46;border-radius:8px;padding:8px;font-size:12px;font-weight:600;cursor:pointer">Start</button>';
+        html += '<button data-agent="' + agentId + '" data-act="start" onclick="agentModalAction(this.dataset.agent,this.dataset.act)" style="flex:1;background:rgba(126,163,126,0.12);color:#09321f;border:1px solid rgba(126,163,126,0.3);border-radius:8px;padding:8px;font-size:12px;font-weight:600;cursor:pointer">Start</button>';
       }
-      html += '<button data-agent="' + agentId + '" data-act="delete" onclick="agentModalAction(this.dataset.agent,this.dataset.act)" style="background:#1a1a1a;color:#6b7280;border:1px solid #2a2a2a;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer">Delete</button>';
+      html += '<button data-agent="' + agentId + '" data-act="delete" onclick="agentModalAction(this.dataset.agent,this.dataset.act)" style="background:#f5efe9;color:#495c52;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer">Delete</button>';
       html += '</div>';
       html += '<div id="agent-action-status" class="text-xs text-center mt-2" style="min-height:16px"></div>';
     }
 
-    if (!html) html = '<div class="text-gray-500 text-sm text-center py-8">No activity yet for this agent.</div>';
+    if (!html) html = '<div class="text-[#495c52] text-sm text-center py-8">No activity yet for this agent.</div>';
     body.innerHTML = html;
   } catch(e) { body.innerHTML = '<div class="text-red-400 text-sm text-center py-8">Failed to load agent details</div>'; }
 }
@@ -1558,12 +1647,12 @@ async function agentModalAction(agentId, action) {
 
   if (action === 'delete') {
     if (!confirm('Delete agent "' + agentId + '"? This removes all config, the service, and the bot token from .env.')) return;
-    status.innerHTML = '<span style="color:#fbbf24">Deleting...</span>';
+    status.innerHTML = '<span style="color:#b8860b">Deleting...</span>';
     try {
       var res = await fetch(BASE + '/api/agents/' + agentId + '/full', { method: 'DELETE' });
       var data = await res.json();
       if (data.ok) {
-        status.innerHTML = '<span style="color:#6ee7b7">Deleted</span>';
+        status.innerHTML = '<span style="color:#7ea37e">Deleted</span>';
         setTimeout(function() { closeAgentModal(); loadAgents(); loadMissionControl(); }, 800);
       } else {
         status.innerHTML = '<span style="color:#f87171">' + escapeHtml(data.error || 'Delete failed') + '</span>';
@@ -1573,22 +1662,22 @@ async function agentModalAction(agentId, action) {
   }
 
   if (action === 'stop') {
-    status.innerHTML = '<span style="color:#fbbf24">Stopping...</span>';
+    status.innerHTML = '<span style="color:#b8860b">Stopping...</span>';
     try {
       await fetch(BASE + '/api/agents/' + agentId + '/deactivate', { method: 'POST' });
-      status.innerHTML = '<span style="color:#6ee7b7">Stopped</span>';
+      status.innerHTML = '<span style="color:#7ea37e">Stopped</span>';
       setTimeout(function() { closeAgentModal(); loadAgents(); }, 800);
     } catch(e) { status.innerHTML = '<span style="color:#f87171">Failed</span>'; }
     return;
   }
 
   if (action === 'start') {
-    status.innerHTML = '<span style="color:#fbbf24">Starting...</span>';
+    status.innerHTML = '<span style="color:#b8860b">Starting...</span>';
     try {
       var res = await fetch(BASE + '/api/agents/' + agentId + '/activate', { method: 'POST' });
       var data = await res.json();
       if (data.ok) {
-        status.innerHTML = '<span style="color:#6ee7b7">Started' + (data.pid ? ' (PID ' + data.pid + ')' : '') + '</span>';
+        status.innerHTML = '<span style="color:#7ea37e">Started' + (data.pid ? ' (PID ' + data.pid + ')' : '') + '</span>';
         setTimeout(function() { closeAgentModal(); loadAgents(); }, 800);
       } else {
         status.innerHTML = '<span style="color:#f87171">' + escapeHtml(data.error || 'Start failed') + '</span>';
@@ -1661,7 +1750,7 @@ function cawShowStep(n) {
   document.getElementById('caw-step-2').style.display = n === 2 ? '' : 'none';
   document.getElementById('caw-step-3').style.display = n === 3 ? '' : 'none';
   for (var i = 1; i <= 3; i++) {
-    document.getElementById('caw-step-' + i + '-dot').style.background = i <= n ? '#014421' : '#2a2a2a';
+    document.getElementById('caw-step-' + i + '-dot').style.background = i <= n ? '#09321f' : 'rgba(5,36,21,0.08)';
   }
   var titles = { 1: 'New Agent', 2: 'Connect Telegram', 3: 'Agent Created' };
   document.getElementById('create-agent-title').textContent = titles[n] || 'New Agent';
@@ -1696,13 +1785,13 @@ function cawIdChanged() {
   }
 
   clearTimeout(cawIdDebounce);
-  status.innerHTML = '<span style="color:#6b7280">Checking...</span>';
+  status.innerHTML = '<span style="color:#495c52">Checking...</span>';
   cawIdDebounce = setTimeout(async function() {
     try {
       var data = await api('/api/agents/validate-id?id=' + encodeURIComponent(id));
       if (data.ok) {
         cawIdValid = true;
-        status.innerHTML = '<span style="color:#6ee7b7">Available</span>';
+        status.innerHTML = '<span style="color:#7ea37e">Available</span>';
       } else {
         status.innerHTML = '<span style="color:#f87171">' + escapeHtml(data.error) + '</span>';
       }
@@ -1763,7 +1852,7 @@ function cawTokenChanged() {
   }
 
   clearTimeout(cawTokenDebounce);
-  status.innerHTML = '<span style="color:#fbbf24">...</span>';
+  status.innerHTML = '<span style="color:#b8860b">...</span>';
   info.innerHTML = '';
 
   cawTokenDebounce = setTimeout(async function() {
@@ -1777,8 +1866,8 @@ function cawTokenChanged() {
       if (data.ok && data.botInfo) {
         cawTokenValid = true;
         cawBotInfo = data.botInfo;
-        status.innerHTML = '<span style="color:#6ee7b7">&#10003;</span>';
-        info.innerHTML = '<span style="color:#6ee7b7">Verified: @' + escapeHtml(data.botInfo.username) + '</span>';
+        status.innerHTML = '<span style="color:#7ea37e">&#10003;</span>';
+        info.innerHTML = '<span style="color:#7ea37e">Verified: @' + escapeHtml(data.botInfo.username) + '</span>';
         btn.style.opacity = '1';
         btn.style.pointerEvents = 'auto';
       } else {
@@ -1826,10 +1915,10 @@ async function cawCreate() {
     cawCreatedId = data.agentId;
 
     // Build summary
-    var summary = '<div style="margin-bottom:6px"><span style="color:#6b7280">Agent ID:</span> <span class="text-white">' + escapeHtml(data.agentId) + '</span></div>' +
-      '<div style="margin-bottom:6px"><span style="color:#6b7280">Bot:</span> <span style="color:#6ee7b7">@' + escapeHtml(data.botInfo.username) + '</span></div>' +
-      '<div style="margin-bottom:6px"><span style="color:#6b7280">Directory:</span> <span style="color:#9ca3af;font-size:11px">' + escapeHtml(data.agentDir) + '</span></div>' +
-      '<div><span style="color:#6b7280">Token stored as:</span> <span style="color:#9ca3af">' + escapeHtml(data.envKey) + '</span></div>';
+    var summary = '<div style="margin-bottom:6px"><span style="color:#495c52">Agent ID:</span> <span class="text-[#052415]">' + escapeHtml(data.agentId) + '</span></div>' +
+      '<div style="margin-bottom:6px"><span style="color:#495c52">Bot:</span> <span style="color:#7ea37e">@' + escapeHtml(data.botInfo.username) + '</span></div>' +
+      '<div style="margin-bottom:6px"><span style="color:#495c52">Directory:</span> <span style="color:#495c52;font-size:11px">' + escapeHtml(data.agentDir) + '</span></div>' +
+      '<div><span style="color:#495c52">Token stored as:</span> <span style="color:#495c52">' + escapeHtml(data.envKey) + '</span></div>';
     document.getElementById('caw-summary').innerHTML = summary;
 
     // Reset activate section
@@ -1837,9 +1926,9 @@ async function cawCreate() {
     actBtn.textContent = 'Activate (install service + start)';
     actBtn.style.opacity = '1';
     actBtn.style.pointerEvents = 'auto';
-    actBtn.style.background = '#064e3b';
-    actBtn.style.color = '#6ee7b7';
-    actBtn.style.borderColor = '#065f46';
+    actBtn.style.background = 'rgba(126,163,126,0.12)';
+    actBtn.style.color = '#09321f';
+    actBtn.style.borderColor = 'rgba(126,163,126,0.3)';
     document.getElementById('caw-activate-status').innerHTML = '';
 
     cawShowStep(3);
@@ -1857,16 +1946,16 @@ async function cawActivate() {
   var status = document.getElementById('caw-activate-status');
   btn.textContent = 'Starting...';
   btn.style.pointerEvents = 'none';
-  status.innerHTML = '<span style="color:#fbbf24">Installing service and starting agent...</span>';
+  status.innerHTML = '<span style="color:#b8860b">Installing service and starting agent...</span>';
 
   try {
     var res = await fetch(BASE + '/api/agents/' + cawCreatedId + '/activate', { method: 'POST' });
     var data = await res.json();
     if (data.ok) {
       btn.textContent = 'Running';
-      btn.style.background = '#064e3b';
-      btn.style.color = '#6ee7b7';
-      status.innerHTML = '<span style="color:#6ee7b7">Agent is live' + (data.pid ? ' (PID ' + data.pid + ')' : '') + '. Send it a message in Telegram!</span>';
+      btn.style.background = 'rgba(126,163,126,0.12)';
+      btn.style.color = '#09321f';
+      status.innerHTML = '<span style="color:#7ea37e">Agent is live' + (data.pid ? ' (PID ' + data.pid + ')' : '') + '. Send it a message in Telegram!</span>';
     } else {
       btn.textContent = 'Retry Activation';
       btn.style.pointerEvents = 'auto';
@@ -2008,7 +2097,7 @@ async function loadMissionControl() {
     if (unassigned.length > 0) {
       inboxEl.innerHTML = unassigned.map(renderInboxCard).join('');
     } else {
-      inboxEl.innerHTML = '<div class="text-xs text-gray-600 py-2">No unassigned tasks. Click + New to create one.</div>';
+      inboxEl.innerHTML = '<div class="text-xs text-[#495c52] py-2">No unassigned tasks. Click + New to create one.</div>';
     }
 
     // Mission Control agent columns
@@ -2030,13 +2119,13 @@ async function loadMissionControl() {
         const agent = missionAgentsList.find(a => a.id === id);
         const color = AGENT_COLORS[id] || '#6b7280';
         const dot = agent && agent.running
-          ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#22c55e;margin-right:4px"></span>'
-          : '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;border:1px solid #555;margin-right:4px"></span>';
+          ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#7ea37e;margin-right:4px"></span>'
+          : '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;border:1px solid #495c52;margin-right:4px"></span>';
         const agentTasks = cols[id] || [];
         html += '<div class="flex-shrink-0" style="min-width:220px;scroll-snap-align:start;">' +
           '<div class="text-xs font-semibold mb-1 uppercase" style="color:' + color + '">' + dot + (agent ? agent.name : id) + '</div>' +
-          '<div data-drop-agent="' + id + '" ondragover="missionDragOver(event)" ondragleave="missionDragLeave(event)" ondrop="missionDrop(event)" style="border:1px solid #2a2a2a;border-radius:10px;padding:8px;min-height:120px;background:#141414;transition:border-color 0.2s,background 0.2s">' +
-          (agentTasks.length ? agentTasks.map(renderMissionCard).join('') : '<div class="text-xs text-gray-600 text-center py-4">No tasks</div>') +
+          '<div data-drop-agent="' + id + '" ondragover="missionDragOver(event)" ondragleave="missionDragLeave(event)" ondrop="missionDrop(event)" style="border:1px solid rgba(5,36,21,0.08);border-radius:10px;padding:8px;min-height:120px;background:#ffffff;transition:border-color 0.2s,background 0.2s">' +
+          (agentTasks.length ? agentTasks.map(renderMissionCard).join('') : '<div class="text-xs text-[#495c52] text-center py-4">No tasks</div>') +
           '</div></div>';
       });
 
@@ -2048,19 +2137,19 @@ async function loadMissionControl() {
 }
 
 function renderInboxCard(t) {
-  const priorityDot = t.priority >= 8 ? '#ef4444' : t.priority >= 4 ? '#fbbf24' : '#6b7280';
+  const priorityDot = t.priority >= 8 ? '#ef4444' : t.priority >= 4 ? '#d9ae62' : '#6b7280';
   const timeAgo = elapsed(t.created_at);
-  return '<div data-mid="' + t.id + '" draggable="true" ondragstart="missionDragStart(event)" ondragend="missionDragEnd(event)" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:12px;min-width:200px;max-width:280px;cursor:grab;transition:opacity 0.15s">' +
+  return '<div data-mid="' + t.id + '" draggable="true" ondragstart="missionDragStart(event)" ondragend="missionDragEnd(event)" style="background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:10px;padding:12px;min-width:200px;max-width:280px;cursor:grab;transition:opacity 0.15s">' +
     '<div class="flex items-center justify-between mb-2">' +
-      '<span class="text-sm font-semibold text-white" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(t.title) + '</span>' +
+      '<span class="text-sm font-semibold text-[#052415]" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(t.title) + '</span>' +
       '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' + priorityDot + ';margin-left:6px;flex-shrink:0"></span>' +
     '</div>' +
-    '<div class="text-xs text-gray-500 mb-2" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(t.prompt.slice(0, 60)) + '</div>' +
+    '<div class="text-xs text-[#495c52] mb-2" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(t.prompt.slice(0, 60)) + '</div>' +
     '<div class="flex items-center justify-between">' +
-      '<button data-mid="' + t.id + '" onclick="autoAssignOne(this.dataset.mid)" style="background:#1e1b4b;color:#a78bfa;border:1px solid #312e81;border-radius:6px;padding:2px 10px;font-size:11px;cursor:pointer">Auto-assign</button>' +
+      '<button data-mid="' + t.id + '" onclick="autoAssignOne(this.dataset.mid)" style="background:rgba(126,151,163,0.1);color:#7e97a3;border:1px solid rgba(126,151,163,0.3);border-radius:6px;padding:2px 10px;font-size:11px;cursor:pointer">Auto-assign</button>' +
       '<div class="flex items-center gap-1">' +
-        '<button data-mid="' + t.id + '" data-mact="cancel" onclick="missionAction(this.dataset.mid,this.dataset.mact)" title="Remove" style="background:none;border:none;cursor:pointer;color:#6b7280;font-size:12px">&times;</button>' +
-        '<span class="text-xs text-gray-600">' + timeAgo + '</span>' +
+        '<button data-mid="' + t.id + '" data-mact="cancel" onclick="missionAction(this.dataset.mid,this.dataset.mact)" title="Remove" style="background:none;border:none;cursor:pointer;color:#495c52;font-size:12px">&times;</button>' +
+        '<span class="text-xs text-[#495c52]">' + timeAgo + '</span>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -2068,13 +2157,13 @@ function renderInboxCard(t) {
 
 function renderMissionCard(t) {
   const color = AGENT_COLORS[t.assigned_agent] || '#6b7280';
-  const priorityDot = t.priority >= 8 ? '#ef4444' : t.priority >= 4 ? '#fbbf24' : '#6b7280';
+  const priorityDot = t.priority >= 8 ? '#ef4444' : t.priority >= 4 ? '#d9ae62' : '#6b7280';
   const statusMap = {
     queued: '<span class="pill pill-paused">queued</span>',
     running: '<span class="pill pill-running">running</span>',
     completed: '<span class="pill pill-active">done</span>',
-    failed: '<span class="pill" style="background:#7f1d1d;color:#f87171">failed</span>',
-    cancelled: '<span class="pill" style="background:#374151;color:#9ca3af">cancelled</span>',
+    failed: '<span class="pill" style="background:rgba(220,38,38,0.1);color:#dc2626">failed</span>',
+    cancelled: '<span class="pill" style="background:rgba(5,36,21,0.06);color:#495c52">cancelled</span>',
   };
   const statusPill = statusMap[t.status] || '<span class="pill">' + t.status + '</span>';
   const agentBadge = t.status === 'queued' ? '<span class="text-xs" style="color:' + color + '">@' + t.assigned_agent + '</span>' : '';
@@ -2087,7 +2176,7 @@ function renderMissionCard(t) {
 
   let resultHtml = '';
   if (t.status === 'completed' && t.result) {
-    resultHtml = '<details class="mt-2"><summary class="text-xs text-gray-500 cursor-pointer">View result' + durationStr + '</summary><pre class="text-xs text-gray-400 mt-1 whitespace-pre-wrap break-words" style="max-height:200px;overflow-y:auto">' + escapeHtml(t.result.slice(0, 2000)) + (t.result.length > 2000 ? '...' : '') + '</pre></details>';
+    resultHtml = '<details class="mt-2"><summary class="text-xs text-[#495c52] cursor-pointer">View result' + durationStr + '</summary><pre class="text-xs text-[#495c52] mt-1 whitespace-pre-wrap break-words" style="max-height:200px;overflow-y:auto">' + escapeHtml(t.result.slice(0, 2000)) + (t.result.length > 2000 ? '...' : '') + '</pre></details>';
   } else if (t.status === 'failed' && t.error) {
     resultHtml = '<div class="text-xs text-red-400 mt-1">' + escapeHtml(t.error.slice(0, 200)) + '</div>';
   }
@@ -2096,19 +2185,19 @@ function renderMissionCard(t) {
     ? '<button data-mid="' + t.id + '" data-mact="cancel" onclick="missionAction(this.dataset.mid,this.dataset.mact)" title="Cancel" style="background:none;border:none;cursor:pointer;color:#f87171;font-size:12px;padding:1px 3px">&times;</button>'
     : '';
   const deleteBtn = (t.status === 'completed' || t.status === 'cancelled' || t.status === 'failed')
-    ? '<button data-mid="' + t.id + '" data-mact="delete" onclick="missionAction(this.dataset.mid,this.dataset.mact)" title="Remove" style="background:none;border:none;cursor:pointer;color:#6b7280;font-size:12px;padding:1px 3px">&times;</button>'
+    ? '<button data-mid="' + t.id + '" data-mact="delete" onclick="missionAction(this.dataset.mid,this.dataset.mact)" title="Remove" style="background:none;border:none;cursor:pointer;color:#495c52;font-size:12px;padding:1px 3px">&times;</button>'
     : '';
 
   const draggable = t.status === 'queued' ? ' draggable="true" ondragstart="missionDragStart(event)" ondragend="missionDragEnd(event)"' : '';
   const grabStyle = t.status === 'queued' ? 'cursor:grab;' : '';
-  return '<div data-mid="' + t.id + '"' + draggable + ' style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:10px;margin-bottom:8px;' + grabStyle + 'transition:opacity 0.15s">' +
+  return '<div data-mid="' + t.id + '"' + draggable + ' style="background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:10px;margin-bottom:8px;' + grabStyle + 'transition:opacity 0.15s">' +
     '<div class="flex items-center justify-between mb-1">' +
-      '<span class="text-xs font-semibold text-white" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(t.title) + '</span>' +
+      '<span class="text-xs font-semibold text-[#052415]" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(t.title) + '</span>' +
       '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' + priorityDot + ';margin-left:6px;flex-shrink:0" title="Priority: ' + t.priority + '"></span>' +
     '</div>' +
     '<div class="flex items-center justify-between">' +
       '<div class="flex items-center gap-2">' + statusPill + agentBadge + '</div>' +
-      '<div class="flex items-center gap-1">' + cancelBtn + deleteBtn + '<span class="text-xs text-gray-600">' + timeAgo + '</span></div>' +
+      '<div class="flex items-center gap-1">' + cancelBtn + deleteBtn + '<span class="text-xs text-[#495c52]">' + timeAgo + '</span></div>' +
     '</div>' +
     resultHtml +
   '</div>';
@@ -2139,8 +2228,8 @@ function missionDragEnd(e) {
   e.currentTarget.style.opacity = '1';
   missionDragId = null;
   document.querySelectorAll('[data-drop-agent]').forEach(function(el) {
-    el.style.borderColor = '#2a2a2a';
-    el.style.background = '#141414';
+    el.style.borderColor = 'rgba(5,36,21,0.08)';
+    el.style.background = '#ffffff';
   });
 }
 
@@ -2149,16 +2238,16 @@ function missionDragOver(e) {
   e.dataTransfer.dropEffect = 'move';
   var col = e.currentTarget.closest('[data-drop-agent]');
   if (col) {
-    col.style.borderColor = '#014421';
-    col.style.background = 'rgba(1,68,33,0.08)';
+    col.style.borderColor = '#09321f';
+    col.style.background = 'rgba(126,163,126,0.08)';
   }
 }
 
 function missionDragLeave(e) {
   var col = e.currentTarget.closest('[data-drop-agent]');
   if (col && !col.contains(e.relatedTarget)) {
-    col.style.borderColor = '#2a2a2a';
-    col.style.background = '#141414';
+    col.style.borderColor = 'rgba(5,36,21,0.08)';
+    col.style.background = '#ffffff';
   }
 }
 
@@ -2166,8 +2255,8 @@ async function missionDrop(e) {
   e.preventDefault();
   var col = e.currentTarget.closest('[data-drop-agent]');
   if (col) {
-    col.style.borderColor = '#2a2a2a';
-    col.style.background = '#141414';
+    col.style.borderColor = 'rgba(5,36,21,0.08)';
+    col.style.background = '#ffffff';
   }
   if (!missionDragId || !col) return;
   var newAgent = col.dataset.dropAgent;
@@ -2269,7 +2358,7 @@ var HISTORY_PAGE = 20;
 
 async function openTaskHistory() {
   historyOffset = 0;
-  document.getElementById('history-body').innerHTML = '<div class="text-gray-500 text-sm text-center py-8">Loading...</div>';
+  document.getElementById('history-body').innerHTML = '<div class="text-[#495c52] text-sm text-center py-8">Loading...</div>';
   document.getElementById('history-overlay').classList.add('open');
   document.getElementById('history-drawer').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -2283,12 +2372,12 @@ async function loadHistoryPage() {
   var body = document.getElementById('history-body');
   if (historyOffset === 0) body.innerHTML = '';
   if (data.tasks.length === 0 && historyOffset === 0) {
-    body.innerHTML = '<div class="text-gray-500 text-sm text-center py-8">No task history yet.</div>';
+    body.innerHTML = '<div class="text-[#495c52] text-sm text-center py-8">No task history yet.</div>';
   } else {
     body.innerHTML += data.tasks.map(function(t) {
       var color = AGENT_COLORS[t.assigned_agent] || '#6b7280';
       var statusCls = t.status === 'completed' ? 'pill-active' : t.status === 'failed' ? '' : '';
-      var statusStyle = t.status === 'failed' ? 'background:#7f1d1d;color:#f87171' : t.status === 'cancelled' ? 'background:#374151;color:#9ca3af' : '';
+      var statusStyle = t.status === 'failed' ? 'background:rgba(220,38,38,0.1);color:#dc2626' : t.status === 'cancelled' ? 'background:rgba(5,36,21,0.06);color:#495c52' : '';
       var dur = '';
       if (t.completed_at && t.started_at) {
         var d = t.completed_at - t.started_at;
@@ -2296,14 +2385,14 @@ async function loadHistoryPage() {
       }
       var date = new Date(t.completed_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       var time = new Date(t.completed_at * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-      var resultHtml = t.result ? '<details class="mt-2"><summary class="text-xs text-gray-500 cursor-pointer">View result</summary><pre class="text-xs text-gray-400 mt-1 whitespace-pre-wrap break-words" style="max-height:200px;overflow-y:auto">' + escapeHtml(t.result.slice(0, 2000)) + '</pre></details>' : '';
+      var resultHtml = t.result ? '<details class="mt-2"><summary class="text-xs text-[#495c52] cursor-pointer">View result</summary><pre class="text-xs text-[#495c52] mt-1 whitespace-pre-wrap break-words" style="max-height:200px;overflow-y:auto">' + escapeHtml(t.result.slice(0, 2000)) + '</pre></details>' : '';
       var errorHtml = t.error ? '<div class="text-xs text-red-400 mt-1">' + escapeHtml(t.error.slice(0, 200)) + '</div>' : '';
-      return '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:12px;margin-bottom:8px">' +
+      return '<div style="background:#f5efe9;border:1px solid rgba(5,36,21,0.08);border-radius:8px;padding:12px;margin-bottom:8px">' +
         '<div class="flex items-center justify-between mb-1">' +
-          '<span class="text-sm font-semibold text-white">' + escapeHtml(t.title) + '</span>' +
+          '<span class="text-sm font-semibold text-[#052415]">' + escapeHtml(t.title) + '</span>' +
           '<span class="pill ' + statusCls + '" style="' + statusStyle + '">' + t.status + '</span>' +
         '</div>' +
-        '<div class="flex items-center gap-2 text-xs text-gray-500">' +
+        '<div class="flex items-center gap-2 text-xs text-[#495c52]">' +
           '<span style="color:' + color + '">@' + (t.assigned_agent || 'unassigned') + '</span>' +
           '<span>' + date + ' ' + time + '</span>' +
           (dur ? '<span>' + dur + '</span>' : '') +
@@ -2398,7 +2487,7 @@ async function loadDbTables() {
     dbTablesLoaded = true;
     const list = document.getElementById('db-table-list');
     if (dbTables.length === 0) {
-      list.innerHTML = '<div style="padding:8px 14px;color:#555;font-size:12px">No tables found</div>';
+      list.innerHTML = '<div style="padding:8px 14px;color:#495c52;font-size:12px">No tables found</div>';
       return;
     }
     list.innerHTML = dbTables.map(function(t) {
@@ -2449,7 +2538,7 @@ function renderDbGrid(columns, rows, sortable) {
   var body = document.getElementById('db-grid-body');
   if (!columns || columns.length === 0) {
     head.innerHTML = '';
-    body.innerHTML = '<tr><td style="padding:20px;color:#555">No data</td></tr>';
+    body.innerHTML = '<tr><td style="padding:20px;color:#495c52">No data</td></tr>';
     return;
   }
   head.innerHTML = '<tr>' + columns.map(function(col) {
@@ -2460,7 +2549,7 @@ function renderDbGrid(columns, rows, sortable) {
     return '<th class="' + cls + '"' + onclick + '>' + escapeHtml(col) + '<span class="sort-arrow">' + arrow + '</span></th>';
   }).join('') + '</tr>';
   if (rows.length === 0) {
-    body.innerHTML = '<tr><td colspan="' + columns.length + '" style="padding:20px;color:#555;text-align:center">Empty table</td></tr>';
+    body.innerHTML = '<tr><td colspan="' + columns.length + '" style="padding:20px;color:#495c52;text-align:center">Empty table</td></tr>';
     return;
   }
   body.innerHTML = rows.map(function(row) {
@@ -2585,6 +2674,13 @@ function switchAgentTab(agentId, el) {
   chatHistoryLoaded = false;
   loadChatHistory();
   loadSessionInfo();
+  // Update input placeholder to show target agent
+  var input = document.getElementById('chat-input');
+  if (input) {
+    input.placeholder = agentId === 'all'
+      ? 'Send a message...'
+      : 'Message ' + agentId.charAt(0).toUpperCase() + agentId.slice(1) + '...';
+  }
 }
 
 // Session Info
@@ -2637,15 +2733,23 @@ function connectChatSSE() {
   const url = BASE + '/api/chat/stream';
   chatSSE = new EventSource(url);
 
+  // Check if an SSE event matches the active agent tab filter
+  function matchesAgentFilter(ev) {
+    if (activeAgentTab === 'all') return true;
+    return ev.agentId === activeAgentTab;
+  }
+
   chatSSE.addEventListener('user_message', function(e) {
     const ev = JSON.parse(e.data);
-    appendChatBubble('user', ev.content, ev.source, true);
+    if (!matchesAgentFilter(ev)) return;
+    appendChatBubble('user', ev.content, ev.source, true, ev.agentId);
     if (!chatOpen) { unreadCount++; updateFabBadge(); }
   });
 
   chatSSE.addEventListener('assistant_message', function(e) {
     const ev = JSON.parse(e.data);
-    appendChatBubble('assistant', ev.content, ev.source, true);
+    if (!matchesAgentFilter(ev)) return;
+    appendChatBubble('assistant', ev.content, ev.source, true, ev.agentId);
     hideTyping();
     if (!chatOpen) { unreadCount++; updateFabBadge(); }
     if (chatOpen) loadSessionInfo();
@@ -2658,6 +2762,7 @@ function connectChatSSE() {
 
   chatSSE.addEventListener('progress', function(e) {
     const ev = JSON.parse(e.data);
+    if (!matchesAgentFilter(ev)) return;
     showProgress(ev.description);
   });
 
@@ -2665,7 +2770,7 @@ function connectChatSSE() {
     // SSE error event
     try {
       const ev = JSON.parse(e.data);
-      appendChatBubble('assistant', ev.content || 'Error', 'system', true);
+      appendChatBubble('assistant', ev.content || 'Error', 'system', true, ev.agentId);
     } catch {}
     hideTyping();
   });
@@ -2683,15 +2788,21 @@ function connectChatSSE() {
 
 function updateChatStatus(connected) {
   const dot = document.getElementById('chat-status-dot');
-  dot.style.background = connected ? '#22c55e' : '#ef4444';
+  dot.style.background = connected ? '#7ea37e' : '#ef4444';
 }
 
-function appendChatBubble(role, content, source, scroll) {
+function appendChatBubble(role, content, source, scroll, agentId) {
   const container = document.getElementById('chat-messages');
   const bubble = document.createElement('div');
   bubble.className = 'chat-bubble ' + (role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant');
   bubble.innerHTML = role === 'assistant' ? renderMarkdown(content) : escapeHtml(content);
-  if (source && source !== 'telegram' && source !== 'dashboard') {
+  // Show agent badge on "All" tab when a non-main agent responded
+  if (agentId && agentId !== 'main' && activeAgentTab === 'all' && role === 'assistant') {
+    const agentBadge = document.createElement('div');
+    agentBadge.className = 'chat-bubble-source';
+    agentBadge.textContent = agentId.charAt(0).toUpperCase() + agentId.slice(1);
+    bubble.appendChild(agentBadge);
+  } else if (source && source !== 'telegram' && source !== 'dashboard') {
     const srcBadge = document.createElement('div');
     srcBadge.className = 'chat-bubble-source';
     srcBadge.textContent = source.charAt(0).toUpperCase() + source.slice(1);
@@ -2821,10 +2932,14 @@ async function sendChatMessage() {
   // Disable send while processing
   document.getElementById('chat-send-btn').disabled = true;
   try {
+    const payload = { message: text };
+    if (activeAgentTab && activeAgentTab !== 'all') {
+      payload.agentId = activeAgentTab;
+    }
     await fetch(BASE + '/api/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify(payload),
     });
   } catch(e) {
     console.error('Send error', e);
@@ -2879,7 +2994,7 @@ async function loadSbTables() {
       var safeId = t.name.replace(/[^a-zA-Z0-9_]/g, '_');
       html += '<div class="db-sidebar-item' + (t.name === sbCurrentTable ? ' active' : '') + '" onclick="loadSbTable(\\''+t.name+'\\')"><span>'+t.name+'</span><span class="sb-row-count" id="sb-count-'+safeId+'">&middot;</span></div>';
     });
-    document.getElementById('sb-table-list').innerHTML = html || '<div style="padding:8px 14px;color:#555;font-size:12px">No tables found</div>';
+    document.getElementById('sb-table-list').innerHTML = html || '<div style="padding:8px 14px;color:#495c52;font-size:12px">No tables found</div>';
     sbTablesLoaded = true;
   } catch(e) {
     document.getElementById('sb-table-list').innerHTML = '<div style="padding:8px 14px;color:#f87171;font-size:12px">Failed to connect to Supabase</div>';
@@ -2926,7 +3041,7 @@ async function loadSbTable(name, page, sort, order) {
     var rows = data.rows || [];
     var bodyHtml = '';
     if (rows.length === 0) {
-      bodyHtml = '<tr><td colspan="' + Math.max(cols.length, 1) + '" style="padding:20px;color:#555">No rows</td></tr>';
+      bodyHtml = '<tr><td colspan="' + Math.max(cols.length, 1) + '" style="padding:20px;color:#495c52">No rows</td></tr>';
     } else {
       rows.forEach(function(row, rowIdx) {
         bodyHtml += '<tr>';
@@ -2993,26 +3108,26 @@ function sbShowCellDetail(col, rowIdx) {
   var val = row[col];
   var display = '';
   if (val === null || val === undefined) {
-    display = '<span style="color:#6b7280;font-style:italic">null</span>';
+    display = '<span style="color:#495c52;font-style:italic">null</span>';
   } else if (typeof val === 'object') {
-    display = '<pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;color:#e0e0e0;font-family:monospace;margin:0">' + escHtml(JSON.stringify(val, null, 2)) + '</pre>';
+    display = '<pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;color:#052415;font-family:monospace;margin:0">' + escHtml(JSON.stringify(val, null, 2)) + '</pre>';
   } else {
-    display = '<pre style="white-space:pre-wrap;word-break:break-all;font-size:13px;color:#e0e0e0;margin:0">' + escHtml(String(val)) + '</pre>';
+    display = '<pre style="white-space:pre-wrap;word-break:break-all;font-size:13px;color:#052415;margin:0">' + escHtml(String(val)) + '</pre>';
   }
   document.getElementById('drawer-title').textContent = sbCurrentTable + '.' + col;
   document.getElementById('drawer-count').textContent = 'Row ' + (rowIdx + 1);
   document.getElementById('drawer-avg-salience').textContent = typeof val === 'string' ? val.length + ' chars' : typeof val;
   document.getElementById('drawer-body').innerHTML =
     '<div style="padding:4px 0">' +
-    '<div style="font-size:11px;color:#6b7280;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Full Value</div>' +
+    '<div style="font-size:11px;color:#495c52;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Full Value</div>' +
     display +
     '</div>' +
     '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-subtle)">' +
-    '<div style="font-size:11px;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">All Columns in This Row</div>' +
+    '<div style="font-size:11px;color:#495c52;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">All Columns in This Row</div>' +
     sbCurrentColumns.map(function(c) {
       var v = row[c];
       var preview = v === null || v === undefined ? 'null' : typeof v === 'object' ? JSON.stringify(v).substring(0,120) : String(v).substring(0,120);
-      return '<div style="margin-bottom:6px"><span style="color:#3b82f6;font-size:11px;font-weight:600">' + escHtml(c) + '</span><br><span style="color:#9ca3af;font-size:12px">' + escHtml(preview) + '</span></div>';
+      return '<div style="margin-bottom:6px"><span style="color:#09321f;font-size:11px;font-weight:600">' + escHtml(c) + '</span><br><span style="color:#495c52;font-size:12px">' + escHtml(preview) + '</span></div>';
     }).join('') +
     '</div>';
   document.getElementById('drawer-load-more').classList.add('hidden');
@@ -3035,7 +3150,7 @@ function sbToggleAddForm() {
 function sbBuildAddForm() {
   var container = document.getElementById('sb-form-fields');
   if (!sbCurrentColumns.length) {
-    container.innerHTML = '<div style="color:#6b7280;font-size:12px;grid-column:1/-1">Load a table first</div>';
+    container.innerHTML = '<div style="color:#495c52;font-size:12px;grid-column:1/-1">Load a table first</div>';
     return;
   }
   var html = '';
@@ -3064,11 +3179,11 @@ async function sbInsertRow() {
     }
   });
   if (!hasValue) {
-    document.getElementById('sb-insert-status').innerHTML = '<span style="color:#fbbf24">Fill at least one field</span>';
+    document.getElementById('sb-insert-status').innerHTML = '<span style="color:#b8860b">Fill at least one field</span>';
     return;
   }
   document.getElementById('sb-submit-row-btn').disabled = true;
-  document.getElementById('sb-insert-status').innerHTML = '<span style="color:#6b7280">Inserting...</span>';
+  document.getElementById('sb-insert-status').innerHTML = '<span style="color:#495c52">Inserting...</span>';
   try {
     var resp = await fetch(BASE + '/api/supabase/tables/' + encodeURIComponent(sbCurrentTable) + '', {
       method: 'POST',
@@ -3079,7 +3194,7 @@ async function sbInsertRow() {
     if (data.error) {
       document.getElementById('sb-insert-status').innerHTML = '<span style="color:#f87171">' + escHtml(data.error) + '</span>';
     } else {
-      document.getElementById('sb-insert-status').innerHTML = '<span style="color:#34d399">Row inserted</span>';
+      document.getElementById('sb-insert-status').innerHTML = '<span style="color:#7ea37e">Row inserted</span>';
       sbToggleAddForm();
       loadSbTable(sbCurrentTable, sbCurrentPage);
     }
@@ -3120,7 +3235,7 @@ async function sbInsertJson() {
       document.getElementById('sb-json-error').textContent = data.error;
       document.getElementById('sb-json-status').textContent = '';
     } else {
-      document.getElementById('sb-json-status').innerHTML = '<span style="color:#34d399">Row inserted</span>';
+      document.getElementById('sb-json-status').innerHTML = '<span style="color:#7ea37e">Row inserted</span>';
       document.getElementById('sb-json-input').value = '';
       loadSbTable(sbCurrentTable, sbCurrentPage);
       setTimeout(function() { document.getElementById('sb-json-status').textContent = ''; }, 3000);
@@ -3144,9 +3259,9 @@ async function sbInsertJson() {
   <div class="chat-header">
     <div class="chat-header-left">
       <span class="chat-header-title">Chat</span>
-      <span class="chat-status-dot" id="chat-status-dot" style="background:#6b7280"></span>
+      <span class="chat-status-dot" id="chat-status-dot" style="background:#495c52"></span>
     </div>
-    <button onclick="closeChat()" class="text-gray-500 hover:text-white text-2xl leading-none">&times;</button>
+    <button onclick="closeChat()" style="background:none;border:none;color:rgba(245,239,233,0.7);cursor:pointer;font-size:24px;padding:4px 8px;border-radius:8px;transition:all 0.15s" onmouseover="this.style.color='#f5efe9';this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.color='rgba(245,239,233,0.7)';this.style.background='none'">&times;</button>
   </div>
   <div class="chat-agent-tabs" id="chat-agent-tabs"></div>
   <div class="chat-session-bar" id="chat-session-bar">
