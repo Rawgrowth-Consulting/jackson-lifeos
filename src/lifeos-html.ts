@@ -903,8 +903,32 @@ export function getLifeOSSellingHtml(authenticated = false): string {
     </a>`).join('')}
   </div>
 
+  <!-- 9-Month Projection -->
+  <div class="section-title animate-lift-in delay-5" style="margin-top:28px;">9-Month Projection</div>
+  <div class="card animate-lift-in delay-5">
+    ${(() => {
+      const months: [string, number][] = [
+        ['May', 27500], ['Jun', 29200], ['Jul', 31000],
+        ['Aug', 28800], ['Sep', 30500], ['Oct', 33000],
+        ['Nov', 35200], ['Dec', 32000], ['Jan', 34500]
+      ];
+      const max = 35200;
+      return months.map(([m, v]) => `
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+        <div style="width:36px;font-size:12px;color:var(--color-sage-muted);font-weight:600;text-align:right;">${m}</div>
+        <div style="flex:1;">
+          <div class="progress-track" style="height:24px;border-radius:8px;">
+            <div class="progress-fill" style="width:${Math.round((v / max) * 100)}%;background:var(--color-sage);border-radius:8px;display:flex;align-items:center;padding-left:10px;">
+              <span style="font-size:11px;font-weight:600;color:var(--color-paper);">$${v.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      </div>`).join('');
+    })()}
+  </div>
+
   <!-- Document Upload -->
-  <div class="section-title animate-lift-in delay-2" style="margin-top:8px;">Upload Statements</div>
+  <div class="section-title" style="margin-top:28px;">Upload Statements</div>
   <div class="card animate-lift-in delay-2">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
       <div>
