@@ -28,7 +28,7 @@ import { setHighImportanceCallback } from './memory-ingest.js';
 import { setRecruitStageCallback } from './recruit-notify.js';
 import { messageQueue } from './message-queue.js';
 import { parseDelegation, delegateToAgent, getAvailableAgents } from './orchestrator.js';
-import { loadAgentConfig, resolveAgentClaudeMd } from './agent-config.js';
+import { loadAgentConfig, resolveAgentClaudeMd, resolveAgentDir } from './agent-config.js';
 import { emitChatEvent, setProcessing, setActiveAbort, abortActiveQuery } from './state.js';
 import { listSkills } from './skill-manage.js';
 import { getMcpServers } from './mcp-config.js';
@@ -1567,15 +1567,23 @@ async function processDashboardMessage(
   try {
     const sessionId = getSession(chatIdStr, agentId);
 
-    // Load system prompt: for non-default agents, read from their CLAUDE.md
+    // Load system prompt + cwd: for non-default agents, read from their CLAUDE.md
+    // and use their agent dir as cwd so Claude Code finds the right session files
+    // (sessions are stored keyed by cwd under ~/.claude/projects/<slug>/).
     let systemPrompt: string | undefined;
     let model: string | undefined;
-    if (targetAgentId) {
+    let cwdOverride: string | undefined;
+    if (targetAgentId && targetAgentId !== AGENT_ID) {
       try {
         const agentConfig = loadAgentConfig(targetAgentId);
         model = agentConfig.model;
       } catch {
         // Agent config load failed — use defaults
+      }
+      try {
+        cwdOverride = resolveAgentDir(targetAgentId);
+      } catch {
+        // Dir missing — fall through to current cwd
       }
       const claudeMdPath = resolveAgentClaudeMd(targetAgentId);
       if (claudeMdPath) {
@@ -1625,6 +1633,8 @@ async function processDashboardMessage(
       onProgress,
       model,
       abortCtrl,
+      undefined,
+      cwdOverride,
     );
 
     clearTimeout(dashTimeout);

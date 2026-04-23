@@ -2405,7 +2405,7 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
   const body = `
   <div class="animate-lift-in">
     <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Agents</h1>
-    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Your live AI team -- currently running on Telegram.</p>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Your live AI team. Click any card to chat in the bubble.</p>
   </div>
 
   <!-- Live Agents Grid -->
@@ -2418,67 +2418,13 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
     @media (max-width: 480px) { .agents-grid { grid-template-columns: 1fr !important; } }
   </style>
 
-  <!-- Chat Interface -->
-  <div id="agentChatArea" class="section-title animate-lift-in delay-1">Chat</div>
-  <div class="card animate-lift-in delay-1" style="padding:0;overflow:hidden;display:flex;flex-direction:column;height:500px;">
-    <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--color-forest);flex-shrink:0;">
-      <div style="width:8px;height:8px;border-radius:50%;background:var(--color-sage);box-shadow:0 0 6px rgba(126,163,126,0.5);"></div>
-      <div style="font-size:15px;font-weight:600;color:var(--color-cream);" id="agentChatName">Agents</div>
-      <span style="font-size:11px;color:rgba(245,239,233,0.6);" id="agentChatStatus">Pick one below</span>
-    </div>
-    <div id="agentChatTabs" style="display:flex;gap:0;border-bottom:1px solid var(--color-stone-50);overflow-x:auto;background:var(--color-paper);"></div>
-    <div id="agentMessages" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:10px;background:var(--color-cream-soft);">
-      <div class="chat-bubble chat-bubble-assistant">Pick an agent to start chatting.</div>
-    </div>
-    <div id="agentTyping" style="display:none;padding:0 20px 8px;background:var(--color-cream-soft);">
-      <div class="chat-bubble chat-bubble-assistant chat-typing" style="display:inline-flex;">
-        <div class="chat-typing-dot"></div><div class="chat-typing-dot"></div><div class="chat-typing-dot"></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;padding:14px 20px;background:var(--color-paper);border-top:1px solid var(--color-stone-50);flex-shrink:0;">
-      <input type="text" id="agentInput" class="los-input" style="flex:1;border-radius:999px;padding:10px 18px;" placeholder="Message..." onkeydown="if(event.key==='Enter')sendAgentMessage()">
-      <button class="los-btn" onclick="sendAgentMessage()" style="padding:10px 20px;">Send</button>
-    </div>
-  </div>
-
   <script>
-  var activeAgent = '';
-  var agentSSE = null;
-  var agentsCache = [];
-  var agentHistories = {}; // { agentId: [{ role: 'user'|'assistant', content: '...' }] }
-
-  function pushAgentHistory(agentId, role, content) {
-    if (!agentHistories[agentId]) agentHistories[agentId] = [];
-    agentHistories[agentId].push({ role: role, content: content });
-  }
-
-  function renderAgentHistory(agentId) {
-    var container = document.getElementById('agentMessages');
-    var history = agentHistories[agentId] || [];
-    if (!history.length) {
-      var agent = agentsCache.find(function(a) { return a.id === agentId; });
-      var name = agent ? agent.name : agentId;
-      container.innerHTML = '<div class="chat-bubble chat-bubble-assistant">Chatting with ' + name + '. Go.</div>';
-      return;
-    }
-    container.innerHTML = history.map(function(m) {
-      var cls = m.role === 'user' ? 'chat-bubble chat-bubble-user' : 'chat-bubble chat-bubble-assistant';
-      var el = document.createElement('div');
-      el.className = cls;
-      if (m.role === 'assistant') { el.innerHTML = m.content; } else { el.textContent = m.content; }
-      return el.outerHTML;
-    }).join('');
-    container.scrollTop = container.scrollHeight;
-  }
-
   async function loadAgentsPage() {
     try {
       var res = await fetch('/api/agents', { credentials: 'same-origin' });
       var data = await res.json();
       var all = data.agents || [];
-      // Only real, running agents (drop synthetic "main" and anything offline)
       var live = all.filter(function(a) { return a.id !== 'main' && a.running; });
-      agentsCache = live;
 
       var grid = document.getElementById('agents-live-grid');
       if (!live.length) {
@@ -2501,113 +2447,31 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
           '<p style="font-size:12px;color:var(--color-sage-muted);margin:0 0 12px;min-height:30px;">' + (a.description || '') + '</p>' +
           '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--color-sage-muted);">' +
             '<span>' + turns + ' turns today &middot; $' + cost + '</span>' +
-            '<button class="los-btn" style="font-size:11px;padding:6px 12px;" onclick="switchAgent(\\'' + a.id + '\\')">Chat</button>' +
+            '<button class="los-btn" style="font-size:11px;padding:6px 12px;" onclick="openAgentInBubble(\\'' + a.id + '\\')">Chat</button>' +
           '</div>' +
         '</div>';
       }).join('');
-
-      // Chat tabs from live agents only
-      var tabs = document.getElementById('agentChatTabs');
-      tabs.innerHTML = live.map(function(a) {
-        return '<button style="padding:8px 14px;font-size:12px;font-weight:500;border:none;border-bottom:2px solid transparent;background:none;color:var(--color-sage-muted);cursor:pointer;white-space:nowrap;" onclick="switchAgent(\\'' + a.id + '\\')" id="tab-' + a.id + '">' + a.name + '</button>';
-      }).join('');
-
-      // Default to first live agent if none selected yet
-      if (!activeAgent && live.length) switchAgent(live[0].id, false);
-      connectAgentSSE();
     } catch (e) {
       console.error('Failed to load agents page:', e);
       document.getElementById('agents-live-grid').innerHTML = '<div style="grid-column:1/-1;color:var(--color-clay);padding:20px;">Failed to load agents. ' + (e.message || '') + '</div>';
     }
   }
 
-  function switchAgent(agentId, scroll) {
-    activeAgent = agentId;
-    document.querySelectorAll('#agentChatTabs button').forEach(function(btn) {
-      btn.style.borderBottomColor = 'transparent';
-      btn.style.color = 'var(--color-sage-muted)';
-      btn.style.fontWeight = '500';
-    });
-    var activeTab = document.getElementById('tab-' + agentId);
-    if (activeTab) {
-      activeTab.style.borderBottomColor = 'var(--color-sage)';
-      activeTab.style.color = 'var(--color-forest-deep)';
-      activeTab.style.fontWeight = '600';
+  // Pick the agent in the chat bubble dropdown and open the panel.
+  function openAgentInBubble(agentId) {
+    var select = document.getElementById('chatPanelAgent');
+    if (select) {
+      select.value = agentId;
+      if (typeof onChatPanelAgentChange === 'function') onChatPanelAgentChange();
     }
-    var agent = agentsCache.find(function(a) { return a.id === agentId; });
-    var name = agent ? agent.name : agentId;
-    document.getElementById('agentChatName').textContent = name;
-    document.getElementById('agentChatStatus').textContent = 'Online';
-    document.getElementById('agentInput').placeholder = 'Message ' + name + '...';
-    renderAgentHistory(agentId);
-    if (scroll !== false) document.getElementById('agentChatArea').scrollIntoView({ behavior: 'smooth' });
+    var panel = document.getElementById('chatPanel');
+    if (panel && !panel.classList.contains('open')) {
+      if (typeof toggleChatPanel === 'function') toggleChatPanel();
+    }
+    var input = document.getElementById('chatPanelInput');
+    if (input) input.focus();
   }
 
-  function connectAgentSSE() {
-    if (agentSSE) { agentSSE.close(); agentSSE = null; }
-    agentSSE = new EventSource('/api/chat/stream');
-    agentSSE.addEventListener('assistant_message', function(e) {
-      try {
-        var ev = JSON.parse(e.data);
-        if (ev.source !== 'dashboard') return;
-        var targetAgent = ev.agentId || activeAgent;
-        pushAgentHistory(targetAgent, 'assistant', ev.content || '');
-        if (targetAgent === activeAgent) {
-          document.getElementById('agentTyping').style.display = 'none';
-          var bubble = document.createElement('div');
-          bubble.className = 'chat-bubble chat-bubble-assistant';
-          bubble.innerHTML = ev.content || '';
-          document.getElementById('agentMessages').appendChild(bubble);
-          document.getElementById('agentMessages').scrollTop = document.getElementById('agentMessages').scrollHeight;
-        }
-      } catch (err) { console.error('SSE parse error', err); }
-    });
-    agentSSE.addEventListener('processing', function(e) {
-      try {
-        var ev = JSON.parse(e.data);
-        document.getElementById('agentTyping').style.display = ev.processing ? 'block' : 'none';
-      } catch {}
-    });
-    agentSSE.onerror = function() { setTimeout(connectAgentSSE, 3000); };
-  }
-
-  async function sendAgentMessage() {
-    if (!activeAgent) return;
-    var input = document.getElementById('agentInput');
-    var msg = input.value.trim();
-    if (!msg) return;
-    input.value = '';
-    // Clear the placeholder "Chatting with X. Go." bubble on first send
-    if (!(agentHistories[activeAgent] || []).length) {
-      document.getElementById('agentMessages').innerHTML = '';
-    }
-    pushAgentHistory(activeAgent, 'user', msg);
-    var messages = document.getElementById('agentMessages');
-    var userBubble = document.createElement('div');
-    userBubble.className = 'chat-bubble chat-bubble-user';
-    userBubble.textContent = msg;
-    messages.appendChild(userBubble);
-    messages.scrollTop = messages.scrollHeight;
-    document.getElementById('agentTyping').style.display = 'block';
-    try {
-      await fetch('/api/chat/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ message: msg, agentId: activeAgent }),
-      });
-    } catch (err) {
-      document.getElementById('agentTyping').style.display = 'none';
-      var errBubble = document.createElement('div');
-      errBubble.className = 'chat-bubble chat-bubble-assistant';
-      errBubble.textContent = 'Something went wrong. Try again.';
-      errBubble.style.color = 'var(--color-clay)';
-      messages.appendChild(errBubble);
-    }
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  // Load after auth
   fetch('/api/auth-check', { credentials: 'same-origin' })
     .then(function(r) { return r.json(); })
     .then(function(d) { if (d.authenticated) loadAgentsPage(); });

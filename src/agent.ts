@@ -109,6 +109,7 @@ export async function runAgent(
   model?: string,
   abortController?: AbortController,
   onStreamText?: (accumulatedText: string) => void,
+  cwdOverride?: string,
 ): Promise<AgentResult> {
   // Read secrets from .env without polluting process.env.
   // CLAUDE_CODE_OAUTH_TOKEN is optional — the subprocess finds auth via ~/.claude/
@@ -145,9 +146,13 @@ export async function runAgent(
     for await (const event of query({
       prompt: singleTurn(message),
       options: {
-        // cwd = agent directory (if running as agent) or project root.
-        // Claude Code loads CLAUDE.md from cwd via settingSources: ['project'].
-        cwd: agentCwd ?? PROJECT_ROOT,
+        // cwd = cwdOverride (cross-agent dashboard routing),
+        //       agentCwd (when running as a specific agent),
+        //       or PROJECT_ROOT (main process default).
+        // Claude Code loads CLAUDE.md from cwd via settingSources: ['project'],
+        // and session files are stored keyed by this cwd. Using the target agent's
+        // cwd when cross-routing lets the dashboard read the agent's existing sessions.
+        cwd: cwdOverride ?? agentCwd ?? PROJECT_ROOT,
 
         // Resume the previous session for this chat (persistent context)
         resume: sessionId,
