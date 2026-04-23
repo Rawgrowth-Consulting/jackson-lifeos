@@ -30,7 +30,7 @@ function getPool(): pg.Pool {
       max: 10,
       idleTimeoutMillis: 30000,
     });
-    pool.on('error', (err) => {
+    pool.on('error', (err: Error) => {
       logger.error({ err }, 'Recruiting database pool error');
     });
   }
