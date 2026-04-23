@@ -760,15 +760,15 @@ export function getLifeOSHubHtml(authenticated = false): string {
 
 export function getLifeOSSellingHtml(authenticated = false): string {
   const carriers = [
-    ['Mutual of Omaha', 'mutualofomaha.com'],
-    ['Corebridge', 'corebridgefinancial.com'],
-    ['Americo', 'americo.com'],
-    ['Ethos', 'ethoslife.com'],
-    ['Transamerica', 'transamerica.com'],
-    ['American Amicable', 'americanamicable.com'],
-    ['Aetna', 'aetna.com'],
-    ['Chubb', 'chubb.com'],
-    ['National Life', 'nationallife.com'],
+    ['Mutual of Omaha', 'producer.mutualofomaha.com'],
+    ['Corebridge', 'connext.corebridgefinancial.com'],
+    ['Americo', 'portal.americoagent.com'],
+    ['Ethos', 'agents.ethoslife.com/login'],
+    ['Transamerica', 'transact.transamerica.com'],
+    ['American Amicable', 'www.americanamicable.com/v4/AgentLogin.php'],
+    ['Aetna', 'www.aetna.com/producer_public/login.fcc'],
+    ['Chubb', 'agentview.chubb.com'],
+    ['National Life', 'www.nationallife.com/agent'],
   ];
 
   const body = `
