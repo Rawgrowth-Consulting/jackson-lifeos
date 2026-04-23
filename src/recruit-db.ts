@@ -1,40 +1,32 @@
 /**
- * Recruiting Database — PostgreSQL (Supabase)
+ * Recruiting Database — Supabase REST API
  *
- * All recruiting data lives in Supabase PostgreSQL.
- * This module provides the same CRUD interface that was previously in db.ts (SQLite).
+ * All recruiting data lives in Supabase PostgreSQL, accessed via the PostgREST API.
+ * This avoids IPv6/IPv4 issues with direct PostgreSQL connections.
+ * Tables are pre-created via direct PG or the Supabase dashboard.
  */
 
-import pg from 'pg';
-import crypto from 'crypto';
 import { readEnvFile } from './env.js';
 import { logger } from './logger.js';
 
-const { Pool } = pg;
-
 // ── Configuration ───────────────────────────────────────────────────
 
-const envConfig = readEnvFile(['SUPABASE_DATABASE_URL']);
-const DATABASE_URL = process.env.SUPABASE_DATABASE_URL || envConfig.SUPABASE_DATABASE_URL || '';
+const envConfig = readEnvFile(['SUPABASE_RECRUIT_URL', 'SUPABASE_RECRUIT_KEY']);
+const SUPABASE_URL = (process.env.SUPABASE_RECRUIT_URL || envConfig.SUPABASE_RECRUIT_URL || '').replace(/\/$/, '');
+const SUPABASE_KEY = process.env.SUPABASE_RECRUIT_KEY || envConfig.SUPABASE_RECRUIT_KEY || '';
 
-let pool: pg.Pool | null = null;
+function headers(prefer?: string): Record<string, string> {
+  const h: Record<string, string> = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  if (prefer) h['Prefer'] = prefer;
+  return h;
+}
 
-function getPool(): pg.Pool {
-  if (!pool) {
-    if (!DATABASE_URL) {
-      throw new Error('SUPABASE_DATABASE_URL not set — recruiting database unavailable');
-    }
-    pool = new Pool({
-      connectionString: DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-      max: 10,
-      idleTimeoutMillis: 30000,
-    });
-    pool.on('error', (err: Error) => {
-      logger.error({ err }, 'Recruiting database pool error');
-    });
-  }
-  return pool;
+function api(table: string, query = ''): string {
+  return `${SUPABASE_URL}/rest/v1/${table}${query ? '?' + query : ''}`;
 }
 
 // ── Pipeline Stages & Phases ────────────────────────────────────────
@@ -138,14 +130,14 @@ for (const [phaseKey, phase] of Object.entries(RECRUIT_PHASES)) {
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface RecruitQualification {
-  sales_experience: string;       // 'none' | 'some' | 'strong'
-  sales_years: string;            // '0' | '1-2' | '3-5' | '5+'
-  why_insurance: string;          // free text
-  income_goal: string;            // '50k' | '75k' | '100k' | '150k+'
-  hours_per_week: string;         // 'part_10' | 'part_20' | 'full_30' | 'full_40+'
-  financial_runway: string;       // 'none' | '1_month' | '3_months' | '6_months+'
-  coachability: string;           // 'low' | 'medium' | 'high'
-  start_timeline: string;         // 'asap' | '2_weeks' | '1_month' | 'not_sure'
+  sales_experience: string;
+  sales_years: string;
+  why_insurance: string;
+  income_goal: string;
+  hours_per_week: string;
+  financial_runway: string;
+  coachability: string;
+  start_timeline: string;
 }
 
 export interface Recruit {
@@ -186,62 +178,24 @@ export interface RecruitChatMessage {
   created_at: number;
 }
 
-// ── Schema Migration ────────────────────────────────────────────────
+// ── Migration (no-op for REST — tables created via direct PG or dashboard) ──
 
 export async function runRecruitingMigrations(): Promise<void> {
-  const db = getPool();
-
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS recruits (
-      id              TEXT PRIMARY KEY,
-      name            TEXT NOT NULL,
-      email           TEXT NOT NULL DEFAULT '',
-      phone           TEXT NOT NULL DEFAULT '',
-      state           TEXT NOT NULL DEFAULT '',
-      source          TEXT NOT NULL DEFAULT 'form',
-      access_token    TEXT NOT NULL UNIQUE,
-      pipeline_stage  TEXT NOT NULL DEFAULT 'interested',
-      notes           TEXT NOT NULL DEFAULT '',
-      created_at      BIGINT NOT NULL,
-      last_active_at  BIGINT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_recruits_stage ON recruits(pipeline_stage);
-    CREATE INDEX IF NOT EXISTS idx_recruits_token ON recruits(access_token);
-    CREATE INDEX IF NOT EXISTS idx_recruits_time ON recruits(created_at DESC);
-
-    CREATE TABLE IF NOT EXISTS recruit_steps (
-      id          SERIAL PRIMARY KEY,
-      recruit_id  TEXT NOT NULL REFERENCES recruits(id) ON DELETE CASCADE,
-      step_key    TEXT NOT NULL,
-      completed   INTEGER NOT NULL DEFAULT 0,
-      completed_at BIGINT,
-      UNIQUE(recruit_id, step_key)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_recruit_steps_recruit ON recruit_steps(recruit_id);
-
-    CREATE TABLE IF NOT EXISTS recruit_chat_messages (
-      id          SERIAL PRIMARY KEY,
-      recruit_id  TEXT NOT NULL REFERENCES recruits(id) ON DELETE CASCADE,
-      role        TEXT NOT NULL,
-      content     TEXT NOT NULL,
-      created_at  BIGINT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_recruit_chat_recruit ON recruit_chat_messages(recruit_id, created_at DESC);
-  `);
-
-  // Add qualification columns (idempotent)
-  await db.query(`
-    DO $$ BEGIN
-      ALTER TABLE recruits ADD COLUMN IF NOT EXISTS lead_score INTEGER NOT NULL DEFAULT 0;
-      ALTER TABLE recruits ADD COLUMN IF NOT EXISTS qualification JSONB;
-    EXCEPTION WHEN others THEN NULL;
-    END $$;
-  `);
-
-  logger.info('Recruiting PostgreSQL migrations complete');
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    logger.warn('SUPABASE_RECRUIT_URL or SUPABASE_RECRUIT_KEY not set — recruiting disabled');
+    return;
+  }
+  // Verify connection by hitting the API
+  try {
+    const resp = await fetch(api('recruits', 'select=id&limit=1'), { headers: headers() });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`${resp.status}: ${text}`);
+    }
+    logger.info('Recruiting Supabase REST API connected');
+  } catch (err) {
+    logger.error({ err }, 'Failed to connect to recruiting database');
+  }
 }
 
 // ── Lead Scoring ────────────────────────────────────────────────────
@@ -250,168 +204,168 @@ export function calculateLeadScore(q: RecruitQualification): number {
   let score = 0;
   let weights = 0;
 
-  // Sales experience (weight: 3)
   const salesExpScores: Record<string, number> = { none: 2, some: 6, strong: 10 };
   score += (salesExpScores[q.sales_experience] ?? 5) * 3;
   weights += 3;
 
-  // Years in sales (weight: 2)
   const salesYearsScores: Record<string, number> = { '0': 2, '1-2': 5, '3-5': 8, '5+': 10 };
   score += (salesYearsScores[q.sales_years] ?? 3) * 2;
   weights += 2;
 
-  // Income goal — higher goals = more motivated (weight: 1)
   const incomeScores: Record<string, number> = { '50k': 4, '75k': 6, '100k': 8, '150k+': 10 };
   score += (incomeScores[q.income_goal] ?? 5) * 1;
   weights += 1;
 
-  // Hours per week (weight: 2)
   const hoursScores: Record<string, number> = { part_10: 2, part_20: 5, full_30: 7, 'full_40+': 10 };
   score += (hoursScores[q.hours_per_week] ?? 5) * 2;
   weights += 2;
 
-  // Financial runway (weight: 2)
   const runwayScores: Record<string, number> = { none: 1, '1_month': 4, '3_months': 7, '6_months+': 10 };
   score += (runwayScores[q.financial_runway] ?? 3) * 2;
   weights += 2;
 
-  // Coachability (weight: 1.5)
   const coachScores: Record<string, number> = { low: 2, medium: 6, high: 10 };
   score += (coachScores[q.coachability] ?? 5) * 1.5;
   weights += 1.5;
 
-  // Start timeline (weight: 1.5)
   const timelineScores: Record<string, number> = { asap: 10, '2_weeks': 8, '1_month': 5, not_sure: 2 };
   score += (timelineScores[q.start_timeline] ?? 4) * 1.5;
   weights += 1.5;
 
-  // Normalize to 1-10
   const raw = score / weights;
   return Math.max(1, Math.min(10, Math.round(raw)));
+}
+
+// ── Helper: compute meta fields client-side ─────────────────────────
+
+function addMeta(recruit: Recruit, steps: RecruitStep[]): RecruitWithMeta {
+  const stepsForRecruit = steps.filter((s) => s.recruit_id === recruit.id);
+  const completed = stepsForRecruit.filter((s) => s.completed).length;
+  const daysInStage = Math.floor((Date.now() / 1000 - recruit.last_active_at) / 86400);
+  return { ...recruit, steps_completed: completed, steps_total: stepsForRecruit.length, days_in_stage: daysInStage };
 }
 
 // ── CRUD Functions ──────────────────────────────────────────────────
 
 export async function insertRecruit(recruit: Recruit): Promise<void> {
-  const db = getPool();
-  const client = await db.connect();
-  try {
-    await client.query('BEGIN');
-    await client.query(
-      `INSERT INTO recruits (id, name, email, phone, state, source, access_token, pipeline_stage, notes, lead_score, qualification, created_at, last_active_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-      [recruit.id, recruit.name, recruit.email, recruit.phone, recruit.state,
-       recruit.source, recruit.access_token, recruit.pipeline_stage, recruit.notes,
-       recruit.lead_score, recruit.qualification ? JSON.stringify(recruit.qualification) : null,
-       recruit.created_at, recruit.last_active_at],
-    );
-    for (const key of ALL_RECRUIT_STEP_KEYS) {
-      await client.query(
-        'INSERT INTO recruit_steps (recruit_id, step_key, completed) VALUES ($1, $2, 0)',
-        [recruit.id, key],
-      );
-    }
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  // Insert recruit
+  const resp = await fetch(api('recruits'), {
+    method: 'POST',
+    headers: headers('return=minimal'),
+    body: JSON.stringify({
+      id: recruit.id, name: recruit.name, email: recruit.email, phone: recruit.phone,
+      state: recruit.state, source: recruit.source, access_token: recruit.access_token,
+      pipeline_stage: recruit.pipeline_stage, notes: recruit.notes,
+      lead_score: recruit.lead_score, qualification: recruit.qualification,
+      created_at: recruit.created_at, last_active_at: recruit.last_active_at,
+    }),
+  });
+  if (!resp.ok) throw new Error(`Insert recruit failed: ${await resp.text()}`);
+
+  // Seed all steps
+  const stepRows = ALL_RECRUIT_STEP_KEYS.map((key) => ({
+    recruit_id: recruit.id, step_key: key, completed: 0,
+  }));
+  const stepsResp = await fetch(api('recruit_steps'), {
+    method: 'POST',
+    headers: headers('return=minimal'),
+    body: JSON.stringify(stepRows),
+  });
+  if (!stepsResp.ok) throw new Error(`Insert steps failed: ${await stepsResp.text()}`);
 }
 
 export async function getRecruits(stage?: string): Promise<RecruitWithMeta[]> {
-  const db = getPool();
-  let query = `
-    SELECT r.*,
-      (SELECT COUNT(*) FROM recruit_steps WHERE recruit_id = r.id AND completed = 1)::int AS steps_completed,
-      (SELECT COUNT(*) FROM recruit_steps WHERE recruit_id = r.id)::int AS steps_total,
-      EXTRACT(EPOCH FROM (NOW() - TO_TIMESTAMP(r.last_active_at)))::int / 86400 AS days_in_stage
-    FROM recruits r
-  `;
-  const params: unknown[] = [];
-  if (stage) {
-    query += ' WHERE r.pipeline_stage = $1';
-    params.push(stage);
-  }
-  query += ' ORDER BY r.created_at DESC';
-  const result = await db.query(query, params);
-  return result.rows as RecruitWithMeta[];
+  let query = 'select=*&order=created_at.desc';
+  if (stage) query += `&pipeline_stage=eq.${stage}`;
+  const resp = await fetch(api('recruits', query), { headers: headers() });
+  const recruits = await resp.json() as Recruit[];
+
+  // Fetch all steps for computing meta
+  const ids = recruits.map((r) => r.id);
+  if (ids.length === 0) return [];
+  const stepsResp = await fetch(api('recruit_steps', `recruit_id=in.(${ids.join(',')})&select=recruit_id,completed`), { headers: headers() });
+  const steps = await stepsResp.json() as RecruitStep[];
+
+  return recruits.map((r) => addMeta(r, steps));
 }
 
 export async function getStaleRecruits(days: number): Promise<RecruitWithMeta[]> {
-  const db = getPool();
   const cutoff = Math.floor(Date.now() / 1000) - days * 86400;
-  const result = await db.query(`
-    SELECT r.*,
-      (SELECT COUNT(*) FROM recruit_steps WHERE recruit_id = r.id AND completed = 1)::int AS steps_completed,
-      (SELECT COUNT(*) FROM recruit_steps WHERE recruit_id = r.id)::int AS steps_total,
-      EXTRACT(EPOCH FROM (NOW() - TO_TIMESTAMP(r.last_active_at)))::int / 86400 AS days_in_stage
-    FROM recruits r
-    WHERE r.last_active_at < $1 AND r.pipeline_stage != 'appointed'
-    ORDER BY r.last_active_at ASC
-  `, [cutoff]);
-  return result.rows as RecruitWithMeta[];
+  const query = `select=*&last_active_at=lt.${cutoff}&pipeline_stage=neq.appointed&order=last_active_at.asc`;
+  const resp = await fetch(api('recruits', query), { headers: headers() });
+  const recruits = await resp.json() as Recruit[];
+
+  const ids = recruits.map((r) => r.id);
+  if (ids.length === 0) return [];
+  const stepsResp = await fetch(api('recruit_steps', `recruit_id=in.(${ids.join(',')})&select=recruit_id,completed`), { headers: headers() });
+  const steps = await stepsResp.json() as RecruitStep[];
+
+  return recruits.map((r) => addMeta(r, steps));
 }
 
 export async function getRecruit(id: string): Promise<Recruit | undefined> {
-  const db = getPool();
-  const result = await db.query('SELECT * FROM recruits WHERE id = $1', [id]);
-  return result.rows[0] as Recruit | undefined;
+  const resp = await fetch(api('recruits', `id=eq.${id}&select=*`), { headers: headers('return=representation') });
+  const rows = await resp.json() as Recruit[];
+  return rows[0];
 }
 
 export async function getRecruitByToken(token: string): Promise<Recruit | undefined> {
-  const db = getPool();
-  const result = await db.query('SELECT * FROM recruits WHERE access_token = $1', [token]);
-  return result.rows[0] as Recruit | undefined;
+  const resp = await fetch(api('recruits', `access_token=eq.${token}&select=*`), { headers: headers() });
+  const rows = await resp.json() as Recruit[];
+  return rows[0];
 }
 
 export async function updateRecruitStage(id: string, stage: string): Promise<void> {
-  const db = getPool();
   const now = Math.floor(Date.now() / 1000);
-  await db.query('UPDATE recruits SET pipeline_stage = $1, last_active_at = $2 WHERE id = $3', [stage, now, id]);
+  await fetch(api('recruits', `id=eq.${id}`), {
+    method: 'PATCH',
+    headers: headers('return=minimal'),
+    body: JSON.stringify({ pipeline_stage: stage, last_active_at: now }),
+  });
 }
 
 export async function updateRecruitLastActive(id: string): Promise<void> {
-  const db = getPool();
   const now = Math.floor(Date.now() / 1000);
-  await db.query('UPDATE recruits SET last_active_at = $1 WHERE id = $2', [now, id]);
+  await fetch(api('recruits', `id=eq.${id}`), {
+    method: 'PATCH',
+    headers: headers('return=minimal'),
+    body: JSON.stringify({ last_active_at: now }),
+  });
 }
 
 export async function updateRecruitNotes(id: string, notes: string): Promise<void> {
-  const db = getPool();
-  await db.query('UPDATE recruits SET notes = $1 WHERE id = $2', [notes, id]);
+  await fetch(api('recruits', `id=eq.${id}`), {
+    method: 'PATCH',
+    headers: headers('return=minimal'),
+    body: JSON.stringify({ notes }),
+  });
 }
 
 export async function deleteRecruit(id: string): Promise<boolean> {
-  const db = getPool();
-  // ON DELETE CASCADE handles recruit_steps and recruit_chat_messages
-  const result = await db.query('DELETE FROM recruits WHERE id = $1', [id]);
-  return (result.rowCount ?? 0) > 0;
+  // Delete steps and chat first (REST API doesn't cascade)
+  await fetch(api('recruit_chat_messages', `recruit_id=eq.${id}`), { method: 'DELETE', headers: headers() });
+  await fetch(api('recruit_steps', `recruit_id=eq.${id}`), { method: 'DELETE', headers: headers() });
+  const resp = await fetch(api('recruits', `id=eq.${id}`), { method: 'DELETE', headers: headers('return=representation') });
+  const deleted = await resp.json();
+  return Array.isArray(deleted) && deleted.length > 0;
 }
 
 export async function getRecruitSteps(recruitId: string): Promise<RecruitStep[]> {
-  const db = getPool();
-  const result = await db.query(
-    'SELECT * FROM recruit_steps WHERE recruit_id = $1 ORDER BY id ASC',
-    [recruitId],
-  );
-  return result.rows as RecruitStep[];
+  const resp = await fetch(api('recruit_steps', `recruit_id=eq.${recruitId}&select=*&order=id.asc`), { headers: headers() });
+  return await resp.json() as RecruitStep[];
 }
 
-/**
- * Mark a step as completed. If all steps in the step's phase are now done,
- * returns the next pipeline stage so the caller can auto-advance.
- */
 export async function completeRecruitStep(recruitId: string, stepKey: string): Promise<{ completed: boolean; newStage?: string }> {
-  const db = getPool();
   const now = Math.floor(Date.now() / 1000);
-  const result = await db.query(
-    'UPDATE recruit_steps SET completed = 1, completed_at = $1 WHERE recruit_id = $2 AND step_key = $3 AND completed = 0',
-    [now, recruitId, stepKey],
-  );
 
-  if ((result.rowCount ?? 0) === 0) return { completed: false };
+  // Update step
+  const resp = await fetch(api('recruit_steps', `recruit_id=eq.${recruitId}&step_key=eq.${stepKey}&completed=eq.0`), {
+    method: 'PATCH',
+    headers: headers('return=representation'),
+    body: JSON.stringify({ completed: 1, completed_at: now }),
+  });
+  const updated = await resp.json();
+  if (!Array.isArray(updated) || updated.length === 0) return { completed: false };
 
   await updateRecruitLastActive(recruitId);
 
@@ -421,14 +375,18 @@ export async function completeRecruitStep(recruitId: string, stepKey: string): P
 
   const phase = RECRUIT_PHASES[phaseKey];
   const phaseStepKeys = phase.steps.map((s) => s.key);
-  const countResult = await db.query(
-    `SELECT COUNT(*) AS cnt FROM recruit_steps WHERE recruit_id = $1 AND step_key = ANY($2) AND completed = 1`,
-    [recruitId, phaseStepKeys],
-  );
-  const completedCount = parseInt(countResult.rows[0].cnt, 10);
 
-  if (completedCount >= phaseStepKeys.length) {
-    // All steps in this phase are done — find the next stage
+  const stepsResp = await fetch(
+    api('recruit_steps', `recruit_id=eq.${recruitId}&step_key=in.(${phaseStepKeys.join(',')})&completed=eq.1&select=id`),
+    { headers: headers('count=exact') },
+  );
+  const contentRange = stepsResp.headers.get('content-range');
+  const completedCount = contentRange ? parseInt(contentRange.split('/')[1] || '0', 10) : 0;
+  // fallback: count the array
+  const stepsArr = await stepsResp.json();
+  const count = completedCount || (Array.isArray(stepsArr) ? stepsArr.length : 0);
+
+  if (count >= phaseStepKeys.length) {
     const stageIndex = RECRUIT_PIPELINE_STAGES.indexOf(phase.pipelineStage);
     if (stageIndex >= 0 && stageIndex < RECRUIT_PIPELINE_STAGES.length - 1) {
       const nextStage = RECRUIT_PIPELINE_STAGES[stageIndex + 1];
@@ -441,51 +399,46 @@ export async function completeRecruitStep(recruitId: string, stepKey: string): P
 }
 
 export async function uncompleteRecruitStep(recruitId: string, stepKey: string): Promise<void> {
-  const db = getPool();
-  await db.query(
-    'UPDATE recruit_steps SET completed = 0, completed_at = NULL WHERE recruit_id = $1 AND step_key = $2',
-    [recruitId, stepKey],
-  );
+  await fetch(api('recruit_steps', `recruit_id=eq.${recruitId}&step_key=eq.${stepKey}`), {
+    method: 'PATCH',
+    headers: headers('return=minimal'),
+    body: JSON.stringify({ completed: 0, completed_at: null }),
+  });
   await updateRecruitLastActive(recruitId);
 }
 
 export async function getRecruitStats(): Promise<{ total: number; inPipeline: number; conversionRate: number; avgDays: number }> {
-  const db = getPool();
-  const result = await db.query(`
-    SELECT
-      COUNT(*)::int AS total,
-      COUNT(*) FILTER (WHERE pipeline_stage NOT IN ('interested', 'appointed'))::int AS in_pipeline,
-      COUNT(*) FILTER (WHERE pipeline_stage = 'appointed')::int AS appointed,
-      COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - TO_TIMESTAMP(created_at))) / 86400) FILTER (WHERE pipeline_stage != 'appointed'), 0)::int AS avg_days
-    FROM recruits
-  `);
-  const row = result.rows[0];
-  const total = row.total || 0;
-  const appointed = row.appointed || 0;
+  // Fetch all recruits (lightweight — just stage and created_at)
+  const resp = await fetch(api('recruits', 'select=pipeline_stage,created_at'), { headers: headers() });
+  const rows = await resp.json() as { pipeline_stage: string; created_at: number }[];
+
+  const total = rows.length;
+  const appointed = rows.filter((r) => r.pipeline_stage === 'appointed').length;
+  const inPipeline = rows.filter((r) => r.pipeline_stage !== 'interested' && r.pipeline_stage !== 'appointed').length;
   const conversionRate = total > 0 ? Math.round((appointed / total) * 100) : 0;
 
-  return {
-    total,
-    inPipeline: row.in_pipeline || 0,
-    conversionRate,
-    avgDays: row.avg_days || 0,
-  };
+  const nonAppointed = rows.filter((r) => r.pipeline_stage !== 'appointed');
+  const avgDays = nonAppointed.length > 0
+    ? Math.round(nonAppointed.reduce((sum, r) => sum + (Date.now() / 1000 - r.created_at) / 86400, 0) / nonAppointed.length)
+    : 0;
+
+  return { total, inPipeline, conversionRate, avgDays };
 }
 
 export async function insertRecruitChatMessage(msg: Omit<RecruitChatMessage, 'id'>): Promise<number> {
-  const db = getPool();
-  const result = await db.query(
-    'INSERT INTO recruit_chat_messages (recruit_id, role, content, created_at) VALUES ($1, $2, $3, $4) RETURNING id',
-    [msg.recruit_id, msg.role, msg.content, msg.created_at],
-  );
-  return result.rows[0].id;
+  const resp = await fetch(api('recruit_chat_messages'), {
+    method: 'POST',
+    headers: headers('return=representation'),
+    body: JSON.stringify(msg),
+  });
+  const rows = await resp.json();
+  return Array.isArray(rows) && rows[0]?.id ? rows[0].id : 0;
 }
 
 export async function getRecruitChatMessages(recruitId: string, limit = 50): Promise<RecruitChatMessage[]> {
-  const db = getPool();
-  const result = await db.query(
-    'SELECT * FROM recruit_chat_messages WHERE recruit_id = $1 ORDER BY created_at ASC LIMIT $2',
-    [recruitId, limit],
+  const resp = await fetch(
+    api('recruit_chat_messages', `recruit_id=eq.${recruitId}&select=*&order=created_at.asc&limit=${limit}`),
+    { headers: headers() },
   );
-  return result.rows as RecruitChatMessage[];
+  return await resp.json() as RecruitChatMessage[];
 }
