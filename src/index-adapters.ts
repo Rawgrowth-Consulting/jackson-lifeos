@@ -132,20 +132,24 @@ function showBanner(): void {
   }
 }
 
-function acquireLock(): void {
+/** See src/index.ts::acquireLock for the full explanation. Returns true if we terminated a predecessor. */
+function acquireLock(): boolean {
   fs.mkdirSync(STORE_DIR, { recursive: true });
+  let killedPredecessor = false;
   try {
     if (fs.existsSync(PID_FILE)) {
       const old = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
       if (!isNaN(old) && old !== process.pid) {
         try {
           process.kill(old, 'SIGTERM');
+          killedPredecessor = true;
           Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
         } catch { /* already dead */ }
       }
     }
   } catch { /* ignore */ }
   fs.writeFileSync(PID_FILE, String(process.pid), { mode: 0o600 });
+  return killedPredecessor;
 }
 
 function releaseLock(): void {
@@ -170,7 +174,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  acquireLock();
+  const killedPredecessor = acquireLock();
 
   // ── Database & modules ──────────────────────────────────────────
 
@@ -354,33 +358,44 @@ async function main(): Promise<void> {
 
   logger.info({ agentId: AGENT_ID }, 'Starting RawClaw v3...');
 
-  // Retry bot.start() on 409 conflicts (stale Telegram long-poll from previous instance).
+  // See src/index.ts for why: Telegram's long-poll can survive a crash for
+  // ~30s. If we killed a predecessor, wait it out before our first poll.
+  if (killedPredecessor) {
+    const WARMUP_MS = 30_000;
+    logger.info({ warmupMs: WARMUP_MS }, 'Killed a predecessor process — waiting out its stale Telegram long-poll before starting.');
+    await new Promise((r) => setTimeout(r, WARMUP_MS));
+  }
+
+  // Retry on 409: stop the bot + drop_pending_updates to clear stale offset.
   const MAX_RETRIES = 10;
   const RETRY_DELAY_MS = 10_000;
+
+  const onStart = (botInfo: { username?: string; first_name?: string }) => {
+    setTelegramConnected(true);
+    setBotInfo(botInfo.username ?? '', botInfo.first_name ?? 'RawClaw');
+    logger.info({ username: botInfo.username }, 'RawClaw is running');
+
+    const runningAdapters = registry.getRunningAdapterNames();
+    const adapterList = runningAdapters.length > 0
+      ? ` + ${runningAdapters.join(', ')}`
+      : '';
+
+    if (AGENT_ID === 'main') {
+      console.log(`\n  RawClaw v3 online: @${botInfo.username}${adapterList}`);
+      if (!ALLOWED_CHAT_ID) {
+        console.log(`  Send /chatid to get your chat ID for ALLOWED_CHAT_ID`);
+      }
+      console.log();
+    } else {
+      console.log(`\n  RawClaw v3 agent [${AGENT_ID}] online: @${botInfo.username}${adapterList}\n`);
+    }
+  };
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       await bot.start({
-        onStart: (botInfo) => {
-          setTelegramConnected(true);
-          setBotInfo(botInfo.username ?? '', botInfo.first_name ?? 'RawClaw');
-          logger.info({ username: botInfo.username }, 'RawClaw is running');
-
-          const runningAdapters = registry.getRunningAdapterNames();
-          const adapterList = runningAdapters.length > 0
-            ? ` + ${runningAdapters.join(', ')}`
-            : '';
-
-          if (AGENT_ID === 'main') {
-            console.log(`\n  RawClaw v3 online: @${botInfo.username}${adapterList}`);
-            if (!ALLOWED_CHAT_ID) {
-              console.log(`  Send /chatid to get your chat ID for ALLOWED_CHAT_ID`);
-            }
-            console.log();
-          } else {
-            console.log(`\n  RawClaw v3 agent [${AGENT_ID}] online: @${botInfo.username}${adapterList}\n`);
-          }
-        },
+        drop_pending_updates: attempt > 1,
+        onStart,
       });
       break;
     } catch (err: unknown) {
@@ -391,6 +406,7 @@ async function main(): Promise<void> {
           'Telegram 409 conflict (stale poll). Retrying in %ds...',
           RETRY_DELAY_MS / 1000,
         );
+        await bot.stop().catch(() => { /* already stopped */ });
         await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
         continue;
       }

@@ -83,20 +83,29 @@ function showBanner(): void {
   }
 }
 
-function acquireLock(): void {
+/**
+ * Acquire the single-instance lock. Returns true if we had to terminate a
+ * predecessor process — caller can use this to delay Telegram polling until
+ * any stale getUpdates long-poll has timed out on Telegram's side (otherwise
+ * the new process races the old one's dying poll and gets 409'd).
+ */
+function acquireLock(): boolean {
   fs.mkdirSync(STORE_DIR, { recursive: true });
+  let killedPredecessor = false;
   try {
     if (fs.existsSync(PID_FILE)) {
       const old = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
       if (!isNaN(old) && old !== process.pid) {
         try {
           process.kill(old, 'SIGTERM');
+          killedPredecessor = true;
           Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
         } catch { /* already dead */ }
       }
     }
   } catch { /* ignore */ }
   fs.writeFileSync(PID_FILE, String(process.pid), { mode: 0o600 });
+  return killedPredecessor;
 }
 
 function releaseLock(): void {
@@ -120,7 +129,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  acquireLock();
+  const killedPredecessor = acquireLock();
 
   initDatabase();
   logger.info('Database ready');
@@ -238,30 +247,46 @@ async function main(): Promise<void> {
 
   logger.info({ agentId: AGENT_ID }, 'Starting RawClaw...');
 
-  // Retry bot.start() on 409 conflicts (stale Telegram long-poll from previous instance).
-  // Instead of crashing and restart-looping via systemd, wait for the old poll to expire.
+  // Telegram's getUpdates long-poll can linger for ~30s after a crash/SIGTERM
+  // before Telegram releases the session. If we terminated a predecessor
+  // during acquireLock, wait out that window before our first poll to avoid
+  // the new process racing the dying one's poll and flapping on 409.
+  if (killedPredecessor) {
+    const WARMUP_MS = 30_000;
+    logger.info({ warmupMs: WARMUP_MS }, 'Killed a predecessor process — waiting out its stale Telegram long-poll before starting.');
+    await new Promise((r) => setTimeout(r, WARMUP_MS));
+  }
+
+  // Retry bot.start() on 409 conflicts. Between attempts we must (a) fully
+  // stop the Bot to reset grammy's internal polling state and (b) pass
+  // drop_pending_updates on retry so Telegram flushes the offset that caused
+  // the conflict — otherwise the second start races its own stale poll and
+  // flaps every 30s (bug: observed 2026-04-24).
   const MAX_RETRIES = 10;
-  const RETRY_DELAY_MS = 10_000; // 10 seconds between retries
+  const RETRY_DELAY_MS = 10_000;
+
+  const onStart = (botInfo: { username?: string; first_name?: string }) => {
+    setTelegramConnected(true);
+    setBotInfo(botInfo.username ?? '', botInfo.first_name ?? 'RawClaw');
+    logger.info({ username: botInfo.username }, 'RawClaw is running');
+    if (AGENT_ID === 'main') {
+      console.log(`\n  RawClaw online: @${botInfo.username}`);
+      if (!ALLOWED_CHAT_ID) {
+        console.log(`  Send /chatid to get your chat ID for ALLOWED_CHAT_ID`);
+      }
+      console.log();
+    } else {
+      console.log(`\n  RawClaw agent [${AGENT_ID}] online: @${botInfo.username}\n`);
+    }
+  };
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       await bot.start({
-        onStart: (botInfo) => {
-          setTelegramConnected(true);
-          setBotInfo(botInfo.username ?? '', botInfo.first_name ?? 'RawClaw');
-          logger.info({ username: botInfo.username }, 'RawClaw is running');
-          if (AGENT_ID === 'main') {
-            console.log(`\n  RawClaw online: @${botInfo.username}`);
-            if (!ALLOWED_CHAT_ID) {
-              console.log(`  Send /chatid to get your chat ID for ALLOWED_CHAT_ID`);
-            }
-            console.log();
-          } else {
-            console.log(`\n  RawClaw agent [${AGENT_ID}] online: @${botInfo.username}\n`);
-          }
-        },
+        drop_pending_updates: attempt > 1,
+        onStart,
       });
-      break; // Connected successfully
+      break;
     } catch (err: unknown) {
       const is409 = err instanceof Error && err.message.includes('409');
       if (is409 && attempt < MAX_RETRIES) {
@@ -270,10 +295,14 @@ async function main(): Promise<void> {
           'Telegram 409 conflict (stale poll). Retrying in %ds...',
           RETRY_DELAY_MS / 1000,
         );
+        // Release grammy's internal polling state so the next start() gets a
+        // clean slate. Without this, re-calling start() on the same Bot keeps
+        // the old offset and immediately re-triggers the 409.
+        await bot.stop().catch(() => { /* already stopped */ });
         await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
         continue;
       }
-      throw err; // Non-409 error or max retries exhausted
+      throw err;
     }
   }
 }
