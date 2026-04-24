@@ -1,5 +1,7 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import type { Bot } from 'grammy';
 
 import { loadAgentConfig, resolveAgentDir, resolveAgentClaudeMd } from './agent-config.js';
 import { createBot } from './bot.js';
@@ -110,6 +112,43 @@ function acquireLock(): boolean {
 
 function releaseLock(): void {
   try { fs.unlinkSync(PID_FILE); } catch { /* ignore */ }
+}
+
+/**
+ * Preflight: probe Telegram's getUpdates with a zero-timeout short poll. If
+ * another process anywhere on the public internet is already polling this
+ * bot token, Telegram returns 409 and we bail out immediately with a loud,
+ * actionable error message.
+ *
+ * Why this exists: a token can only be polled by one process *globally* at a
+ * time (Telegram protocol constraint, not a VPS-local issue). When a second
+ * poller exists, both processes flap every ~30s in a silent war that
+ * presents to the user as "bot types for a second then breaks". This probe
+ * makes the conflict visible at boot instead of burying it in retry logs.
+ * Observed 2026-04-24 when a local launchd agent on the dev Mac kept polling
+ * the same tokens as the VPS.
+ */
+async function preflightBotToken(bot: Bot): Promise<void> {
+  try {
+    await bot.api.getUpdates({ offset: -1, limit: 1, timeout: 0 });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes('409')) {
+      let username = '(unknown)';
+      try {
+        const me = await bot.api.getMe();
+        username = `@${me.username}`;
+      } catch { /* identity lookup failed, continue with (unknown) */ }
+      throw new Error(
+        `Preflight failed: ${username} is already being polled by another process somewhere on the internet. ` +
+        `A Telegram bot token can only be polled by ONE host globally at a time. ` +
+        `Check for: (1) another deployment still running with this token (old VPS, Railway/Fly/Vercel, teammate's machine); ` +
+        `(2) a launchd agent on dev Macs (see ~/Library/LaunchAgents/com.rawclaw.*); ` +
+        `(3) a pm2 resurrected process (pm2 list on suspect machines). ` +
+        `Current hostname: ${os.hostname()}. Exiting to avoid silent 409 flap.`,
+      );
+    }
+    throw err;
+  }
 }
 
 async function main(): Promise<void> {
@@ -256,6 +295,10 @@ async function main(): Promise<void> {
     logger.info({ warmupMs: WARMUP_MS }, 'Killed a predecessor process — waiting out its stale Telegram long-poll before starting.');
     await new Promise((r) => setTimeout(r, WARMUP_MS));
   }
+
+  // Detect a globally-duplicate poller before entering the retry loop so the
+  // error surface tells the operator exactly what's wrong.
+  await preflightBotToken(bot);
 
   // Retry bot.start() on 409 conflicts. Between attempts we must (a) fully
   // stop the Bot to reset grammy's internal polling state and (b) pass

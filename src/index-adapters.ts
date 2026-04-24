@@ -18,7 +18,9 @@
  */
 
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import type { Bot } from 'grammy';
 
 import { loadAgentConfig, resolveAgentDir, resolveAgentClaudeMd } from './agent-config.js';
 import { createBot, splitMessage, formatForTelegram } from './bot.js';
@@ -154,6 +156,30 @@ function acquireLock(): boolean {
 
 function releaseLock(): void {
   try { fs.unlinkSync(PID_FILE); } catch { /* ignore */ }
+}
+
+/** See src/index.ts::preflightBotToken. */
+async function preflightBotToken(bot: Bot): Promise<void> {
+  try {
+    await bot.api.getUpdates({ offset: -1, limit: 1, timeout: 0 });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes('409')) {
+      let username = '(unknown)';
+      try {
+        const me = await bot.api.getMe();
+        username = `@${me.username}`;
+      } catch { /* identity lookup failed */ }
+      throw new Error(
+        `Preflight failed: ${username} is already being polled by another process somewhere on the internet. ` +
+        `A Telegram bot token can only be polled by ONE host globally at a time. ` +
+        `Check for: (1) another deployment still running with this token; ` +
+        `(2) a launchd agent on dev Macs (see ~/Library/LaunchAgents/com.rawclaw.*); ` +
+        `(3) a pm2 resurrected process (pm2 list on suspect machines). ` +
+        `Current hostname: ${os.hostname()}. Exiting to avoid silent 409 flap.`,
+      );
+    }
+    throw err;
+  }
 }
 
 // ── Main ────────────────────────────────────────────────────────────
@@ -365,6 +391,8 @@ async function main(): Promise<void> {
     logger.info({ warmupMs: WARMUP_MS }, 'Killed a predecessor process — waiting out its stale Telegram long-poll before starting.');
     await new Promise((r) => setTimeout(r, WARMUP_MS));
   }
+
+  await preflightBotToken(bot);
 
   // Retry on 409: stop the bot + drop_pending_updates to clear stale offset.
   const MAX_RETRIES = 10;
