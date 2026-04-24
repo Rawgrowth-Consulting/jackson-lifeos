@@ -2136,178 +2136,250 @@ async function sendChat() {
 </html>`;
 }
 
-// ─── Page 4: Brand ──────────────────────────────────────────────────────────────
+// ─── Page 4: Brand (hub) ────────────────────────────────────────────────────────
 
 export function getLifeOSBrandHtml(authenticated = false): string {
   const body = `
   <div class="animate-lift-in">
     <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Brand</h1>
-    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Content, social analytics, and posting.</p>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Click into a platform for its full insights dashboard.</p>
   </div>
 
-  <!-- KPI Row -->
-  <div class="summary-bar animate-lift-in delay-1">
-    <div class="summary-stat">
-      <div class="summary-stat-val">12.4K</div>
-      <div class="summary-stat-label">Total Followers</div>
-    </div>
-    <div class="summary-stat">
-      <div class="summary-stat-val" style="color:var(--color-sage);">3.2%</div>
-      <div class="summary-stat-label">Engagement Rate</div>
-    </div>
-    <div class="summary-stat">
-      <div class="summary-stat-val">5/7</div>
-      <div class="summary-stat-label">Content This Week</div>
-    </div>
-    <div class="summary-stat">
-      <div class="summary-stat-val" style="color:var(--color-forest);">45.2K</div>
-      <div class="summary-stat-label">Monthly Reach</div>
-    </div>
-  </div>
+  <div class="brand-hub-grid animate-lift-in delay-1" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
 
-  <!-- Platform Cards -->
-  <div class="section-title animate-lift-in delay-2">Platforms</div>
-  <div class="brand-grid animate-lift-in delay-2" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
+    <a href="/brand/youtube" style="text-decoration:none;color:inherit;">
+      <div class="card card-hover" style="margin-bottom:0;padding:24px;cursor:pointer;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:#ff0000;display:flex;align-items:center;justify-content:center;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:16px;font-weight:600;color:var(--color-forest-deep);">YouTube</div>
+            <div style="font-size:11px;color:var(--color-sage-muted);margin-top:2px;" id="ytHubStatus">Loading&hellip;</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:20px;">
+          <div>
+            <div class="summary-stat-val" style="font-size:24px;" id="ytHubSubs">&mdash;</div>
+            <div class="summary-stat-label" style="font-size:10px;">Subscribers</div>
+          </div>
+          <div>
+            <div class="summary-stat-val" style="font-size:24px;" id="ytHubVideos">&mdash;</div>
+            <div class="summary-stat-label" style="font-size:10px;">Videos</div>
+          </div>
+        </div>
+        <div style="margin-top:16px;font-size:11px;color:var(--color-sage);">View insights &rarr;</div>
+      </div>
+    </a>
 
-    <!-- Instagram -->
-    <div class="card" style="margin-bottom:0;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-        <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;font-weight:700;">IG</div>
-        <div>
-          <div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);">Instagram</div>
-          <div style="font-size:11px;color:var(--color-sage-muted);">8.2K followers &middot; 3.8% engagement</div>
+    <a href="/brand/instagram" style="text-decoration:none;color:inherit;">
+      <div class="card card-hover" style="margin-bottom:0;padding:24px;cursor:pointer;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);display:flex;align-items:center;justify-content:center;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.9" fill="#fff" stroke="none"/></svg>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:16px;font-weight:600;color:var(--color-forest-deep);">Instagram</div>
+            <div style="font-size:11px;color:var(--color-sage-muted);margin-top:2px;">Not connected</div>
+          </div>
         </div>
+        <p style="font-size:12px;color:var(--color-sage-muted);margin:0 0 16px;line-height:1.5;">Requires Meta App Review (1-2 weeks). Connect once approved.</p>
+        <div style="font-size:11px;color:var(--color-sage);">View details &rarr;</div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">
-          <span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">Apr 22</span><br>"5 mistakes new FE agents make" — Reel, 2.4K views
-        </div>
-        <div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">
-          <span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">Apr 20</span><br>"Monday motivation — why I chose insurance" — Story
-        </div>
-        <div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">
-          <span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">Apr 18</span><br>"Client testimonial — the Davis family" — Carousel
-        </div>
-      </div>
-    </div>
+    </a>
 
-    <!-- YouTube -->
-    <div class="card" style="margin-bottom:0;" id="ytCard">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-        <div style="width:40px;height:40px;border-radius:12px;background:#ff0000;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;font-weight:700;">YT</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);" id="ytTitle">YouTube</div>
-          <div style="font-size:11px;color:var(--color-sage-muted);" id="ytSubtitle">Loading&hellip;</div>
+    <a href="/brand/linkedin" style="text-decoration:none;color:inherit;">
+      <div class="card card-hover" style="margin-bottom:0;padding:24px;cursor:pointer;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:#0a66c2;display:flex;align-items:center;justify-content:center;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zm1.78 13.02H3.56V9h3.56v11.45z"/></svg>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:16px;font-weight:600;color:var(--color-forest-deep);">LinkedIn</div>
+            <div style="font-size:11px;color:var(--color-sage-muted);margin-top:2px;">Not connected</div>
+          </div>
         </div>
+        <p style="font-size:12px;color:var(--color-sage-muted);margin:0 0 16px;line-height:1.5;">Analytics API is gated behind LinkedIn's Marketing Developer Platform.</p>
+        <div style="font-size:11px;color:var(--color-sage);">View details &rarr;</div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px;" id="ytVideos">
-        <div style="font-size:12px;color:var(--color-sage-muted);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;text-align:center;">Loading recent videos&hellip;</div>
-      </div>
-    </div>
-    <script>
-    (function(){
-      function fmt(n){ if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return String(n); }
-      function shortDate(iso){ try { var d=new Date(iso); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); } catch { return ''; } }
-      fetch('/api/brand/youtube', { credentials: 'include' })
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-          if (!data.ok) {
-            document.getElementById('ytSubtitle').textContent = 'Unavailable';
-            document.getElementById('ytVideos').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">' + (data.error || 'YouTube API error') + '</div>';
-            return;
-          }
-          var ch = data.channel || {};
-          var vids = data.videos || [];
-          document.getElementById('ytTitle').textContent = ch.title || 'YouTube';
-          var avg = vids.length > 0 ? Math.round(vids.reduce(function(s,v){return s+(v.views||0);},0) / vids.length) : 0;
-          document.getElementById('ytSubtitle').textContent = fmt(ch.subscribers||0) + ' subs · ' + fmt(avg) + ' avg views';
-          if (vids.length === 0) {
-            document.getElementById('ytVideos').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;text-align:center;">No public videos yet</div>';
-            return;
-          }
-          document.getElementById('ytVideos').innerHTML = vids.slice(0,3).map(function(v){
-            var dateStr = shortDate(v.publishedAt);
-            var title = (v.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            return '<div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">' +
-              '<span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">' + dateStr + '</span><br>"' +
-              title + '" — ' + fmt(v.views||0) + ' views</div>';
-          }).join('');
-        })
-        .catch(function(err){
-          document.getElementById('ytSubtitle').textContent = 'Unavailable';
-          document.getElementById('ytVideos').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">Network error</div>';
-        });
-    })();
-    </script>
-
-    <!-- LinkedIn -->
-    <div class="card" style="margin-bottom:0;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-        <div style="width:40px;height:40px;border-radius:12px;background:#0a66c2;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;font-weight:700;">in</div>
-        <div>
-          <div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);">LinkedIn</div>
-          <div style="font-size:11px;color:var(--color-sage-muted);">2.1K connections &middot; 890 impressions</div>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">
-          <span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">Apr 22</span><br>"The truth about final expense commissions" — 340 likes
-        </div>
-        <div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">
-          <span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">Apr 19</span><br>"Why I'm bullish on recruiting in 2026" — 210 likes
-        </div>
-        <div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">
-          <span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">Apr 16</span><br>"3 books that changed my sales career" — 180 likes
-        </div>
-      </div>
-    </div>
+    </a>
 
   </div>
+
   <style>
-    @media (max-width: 768px) {
-      .brand-grid { grid-template-columns: 1fr !important; }
-      .ideas-grid { grid-template-columns: 1fr !important; }
-    }
+    @media (max-width: 768px) { .brand-hub-grid { grid-template-columns: 1fr !important; } }
   </style>
 
-  <!-- Daily Content Ideas -->
-  <div class="section-title animate-lift-in delay-3">Daily Content Ideas</div>
-  <div class="ideas-grid animate-lift-in delay-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
-
-    <div class="card card-hover" style="margin-bottom:0;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <span class="pill" style="background:rgba(255,128,0,0.12);color:var(--color-orange);">Instagram Reel</span>
-      </div>
-      <div class="serif-display" style="font-size:16px;color:var(--color-forest-deep);margin-bottom:8px;">5 Things New Agents Get Wrong</div>
-      <p style="font-size:12px;color:var(--color-sage-muted);margin:0;line-height:1.6;">Quick-hit reel with text overlays covering the most common mistakes you see new FE agents make. Hook: "Stop doing this if you want to survive year one."</p>
-    </div>
-
-    <div class="card card-hover" style="margin-bottom:0;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <span class="pill" style="background:rgba(208,119,101,0.12);color:var(--color-clay);">YouTube Video</span>
-      </div>
-      <div class="serif-display" style="font-size:16px;color:var(--color-forest-deep);margin-bottom:8px;">How I Built a $500K Book in 18 Months</div>
-      <p style="font-size:12px;color:var(--color-sage-muted);margin:0;line-height:1.6;">Long-form breakdown of your journey. Include monthly numbers, what worked, what didn't, and actionable takeaways for viewers.</p>
-    </div>
-
-    <div class="card card-hover" style="margin-bottom:0;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <span class="pill" style="background:rgba(9,50,31,0.08);color:var(--color-forest);">LinkedIn Post</span>
-      </div>
-      <div class="serif-display" style="font-size:16px;color:var(--color-forest-deep);margin-bottom:8px;">The truth about FE commissions</div>
-      <p style="font-size:12px;color:var(--color-sage-muted);margin:0;line-height:1.6;">Transparent post about real numbers — what you actually take home after chargebacks, taxes, and lead costs. Build trust and authority.</p>
-    </div>
-
-  </div>
-
-  <!-- Connect Banner -->
-  <div class="card animate-lift-in delay-4" style="text-align:center;padding:28px;opacity:0.7;margin-bottom:0;">
-    <div style="font-size:14px;font-weight:600;color:var(--color-sage-muted);margin-bottom:4px;">Connect Social Accounts</div>
-    <p style="font-size:12px;color:var(--color-sage-muted);margin:0;">Link your Instagram, YouTube, and LinkedIn for real-time analytics.</p>
-  </div>`;
+  <script>
+  (function(){
+    function fmt(n){ if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return String(n); }
+    fetch('/api/brand/youtube', { credentials: 'include' })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) {
+          document.getElementById('ytHubStatus').textContent = data.error === 'Unauthorized' ? 'Log in to view' : 'Unavailable';
+          return;
+        }
+        var ch = data.channel || {};
+        document.getElementById('ytHubStatus').textContent = ch.title || 'Connected';
+        document.getElementById('ytHubSubs').textContent = fmt(ch.subscribers || 0);
+        document.getElementById('ytHubVideos').textContent = fmt(ch.videoCount || 0);
+      })
+      .catch(function(){ document.getElementById('ytHubStatus').textContent = 'Network error'; });
+  })();
+  </script>`;
 
   return wrapPage('Brand', 'brand', body, authenticated);
 }
+
+// ─── Page 4a: Brand → YouTube ───────────────────────────────────────────────────
+
+export function getLifeOSBrandYouTubeHtml(authenticated = false): string {
+  const body = `
+  <div class="animate-lift-in">
+    <div style="font-size:12px;color:var(--color-sage-muted);margin-bottom:4px;">
+      <a href="/brand" style="color:var(--color-sage);text-decoration:none;">&larr; Brand</a>
+    </div>
+    <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">YouTube</h1>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;" id="ytChannelSubtitle">Loading channel&hellip;</p>
+  </div>
+
+  <!-- Channel header card -->
+  <div class="card animate-lift-in delay-1" style="margin-bottom:24px;display:flex;align-items:center;gap:18px;padding:22px;">
+    <img id="ytChannelThumb" src="" alt="" style="width:72px;height:72px;border-radius:50%;background:var(--color-stone-50);" />
+    <div style="flex:1;min-width:0;">
+      <div class="serif-display" id="ytChannelTitle" style="font-size:20px;color:var(--color-forest-deep);margin-bottom:4px;">&hellip;</div>
+      <a id="ytChannelLink" href="https://youtube.com" target="_blank" rel="noopener" style="font-size:12px;color:var(--color-sage);text-decoration:none;">Open on YouTube &rarr;</a>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="summary-bar animate-lift-in delay-2">
+    <div class="summary-stat"><div class="summary-stat-val" id="ytKpiSubs">&mdash;</div><div class="summary-stat-label">Subscribers</div></div>
+    <div class="summary-stat"><div class="summary-stat-val" id="ytKpiViews">&mdash;</div><div class="summary-stat-label">Total Views</div></div>
+    <div class="summary-stat"><div class="summary-stat-val" id="ytKpiVideos">&mdash;</div><div class="summary-stat-label">Videos</div></div>
+    <div class="summary-stat"><div class="summary-stat-val" id="ytKpiAvg">&mdash;</div><div class="summary-stat-label">Avg Views / Recent</div></div>
+  </div>
+
+  <div class="section-title animate-lift-in delay-3">Recent Videos</div>
+  <div class="yt-video-grid animate-lift-in delay-3" id="ytVideoGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px;">
+    <div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">Loading videos&hellip;</div>
+  </div>
+
+  <div class="card animate-lift-in delay-4" style="text-align:center;padding:20px;">
+    <a href="https://studio.youtube.com" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:var(--color-sage);text-decoration:none;">Open YouTube Studio &rarr;</a>
+  </div>
+
+  <style>
+    .yt-video-card { display:block; text-decoration:none; color:inherit; border-radius:14px; overflow:hidden; background:var(--color-cream-soft); transition:transform 0.15s ease, box-shadow 0.15s ease; }
+    .yt-video-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(5,36,21,0.08); }
+    .yt-video-thumb { width:100%; aspect-ratio:16/9; object-fit:cover; background:var(--color-stone-50); display:block; }
+    .yt-video-meta { padding:12px 14px; }
+    .yt-video-title { font-size:13px; font-weight:600; color:var(--color-forest-deep); line-height:1.35; margin-bottom:6px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .yt-video-stats { font-size:11px; color:var(--color-sage-muted); }
+    @media (max-width: 900px) { .yt-video-grid { grid-template-columns:repeat(2,1fr) !important; } }
+    @media (max-width: 560px) { .yt-video-grid { grid-template-columns:1fr !important; } }
+  </style>
+
+  <script>
+  (function(){
+    function fmt(n){ if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return String(n); }
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function shortDate(iso){ try { var d=new Date(iso); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); } catch { return ''; } }
+
+    fetch('/api/brand/youtube?limit=12', { credentials: 'include' })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) {
+          var msg = data.error === 'Unauthorized' ? 'Log in to view YouTube data.' : ('YouTube error: ' + (data.error || 'unknown'));
+          document.getElementById('ytChannelSubtitle').textContent = msg;
+          document.getElementById('ytVideoGrid').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">' + msg + '</div>';
+          return;
+        }
+        var ch = data.channel || {}; var vids = data.videos || [];
+        document.getElementById('ytChannelThumb').src = ch.thumbnail || '';
+        document.getElementById('ytChannelTitle').textContent = ch.title || 'Channel';
+        document.getElementById('ytChannelSubtitle').textContent = 'Live channel data via YouTube Data API.';
+        if (ch.id) document.getElementById('ytChannelLink').href = 'https://www.youtube.com/channel/' + ch.id;
+
+        document.getElementById('ytKpiSubs').textContent = fmt(ch.subscribers || 0);
+        document.getElementById('ytKpiViews').textContent = fmt(ch.totalViews || 0);
+        document.getElementById('ytKpiVideos').textContent = fmt(ch.videoCount || 0);
+        var avg = vids.length > 0 ? Math.round(vids.reduce(function(s,v){ return s + (v.views||0); },0) / vids.length) : 0;
+        document.getElementById('ytKpiAvg').textContent = fmt(avg);
+
+        if (vids.length === 0) {
+          document.getElementById('ytVideoGrid').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;grid-column:1/-1;">No public videos found.</div>';
+          return;
+        }
+        document.getElementById('ytVideoGrid').innerHTML = vids.map(function(v){
+          return '<a class="yt-video-card" href="https://www.youtube.com/watch?v=' + esc(v.id) + '" target="_blank" rel="noopener">' +
+            '<img class="yt-video-thumb" src="' + esc(v.thumbnail) + '" alt="" />' +
+            '<div class="yt-video-meta">' +
+              '<div class="yt-video-title">' + esc(v.title) + '</div>' +
+              '<div class="yt-video-stats">' + shortDate(v.publishedAt) + ' · ' + fmt(v.views||0) + ' views · ' + fmt(v.likes||0) + ' likes · ' + fmt(v.comments||0) + ' comments</div>' +
+            '</div>' +
+          '</a>';
+        }).join('');
+      })
+      .catch(function(err){
+        document.getElementById('ytChannelSubtitle').textContent = 'Network error.';
+        document.getElementById('ytVideoGrid').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">Network error.</div>';
+      });
+  })();
+  </script>`;
+
+  return wrapPage('YouTube', 'brand', body, authenticated);
+}
+
+// ─── Page 4b: Brand → Instagram (not connected) ─────────────────────────────────
+
+export function getLifeOSBrandInstagramHtml(authenticated = false): string {
+  const body = `
+  <div class="animate-lift-in">
+    <div style="font-size:12px;color:var(--color-sage-muted);margin-bottom:4px;">
+      <a href="/brand" style="color:var(--color-sage);text-decoration:none;">&larr; Brand</a>
+    </div>
+    <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Instagram</h1>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Not yet connected.</p>
+  </div>
+
+  <div class="card animate-lift-in delay-1" style="padding:32px;text-align:center;">
+    <div style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.9" fill="#fff" stroke="none"/></svg>
+    </div>
+    <div class="serif-display" style="font-size:20px;color:var(--color-forest-deep);margin-bottom:10px;">Instagram insights not available yet</div>
+    <p style="font-size:13px;color:var(--color-sage-muted);max-width:520px;margin:0 auto 20px;line-height:1.6;">Pulling Instagram analytics requires a Meta App review — typically a 1-2 week process. Steps once ready: convert the account to Business or Creator, link it to a Facebook Page, register the app, submit for review.</p>
+    <a href="https://www.instagram.com/jacksonrapaport/" target="_blank" rel="noopener" style="display:inline-block;padding:10px 20px;border-radius:10px;background:var(--color-sage);color:var(--color-paper);font-size:13px;font-weight:600;text-decoration:none;">Open Instagram insights in app &rarr;</a>
+  </div>`;
+
+  return wrapPage('Instagram', 'brand', body, authenticated);
+}
+
+// ─── Page 4c: Brand → LinkedIn (not connected) ──────────────────────────────────
+
+export function getLifeOSBrandLinkedInHtml(authenticated = false): string {
+  const body = `
+  <div class="animate-lift-in">
+    <div style="font-size:12px;color:var(--color-sage-muted);margin-bottom:4px;">
+      <a href="/brand" style="color:var(--color-sage);text-decoration:none;">&larr; Brand</a>
+    </div>
+    <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">LinkedIn</h1>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Not yet connected.</p>
+  </div>
+
+  <div class="card animate-lift-in delay-1" style="padding:32px;text-align:center;">
+    <div style="width:64px;height:64px;border-radius:16px;background:#0a66c2;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zm1.78 13.02H3.56V9h3.56v11.45z"/></svg>
+    </div>
+    <div class="serif-display" style="font-size:20px;color:var(--color-forest-deep);margin-bottom:10px;">LinkedIn analytics not available yet</div>
+    <p style="font-size:13px;color:var(--color-sage-muted);max-width:520px;margin:0 auto 20px;line-height:1.6;">LinkedIn gates its analytics API behind the Marketing Developer Platform, which is hard to get approved for as an individual. Realistic workarounds: scrape your own dashboard, or pull via a third-party aggregator.</p>
+    <a href="https://www.linkedin.com/analytics/creator/content/" target="_blank" rel="noopener" style="display:inline-block;padding:10px 20px;border-radius:10px;background:var(--color-sage);color:var(--color-paper);font-size:13px;font-weight:600;text-decoration:none;">Open LinkedIn analytics &rarr;</a>
+  </div>`;
+
+  return wrapPage('LinkedIn', 'brand', body, authenticated);
+}
+
 
 // ─── Page 5: Personal ───────────────────────────────────────────────────────────
 

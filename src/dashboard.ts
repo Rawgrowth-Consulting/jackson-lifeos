@@ -96,6 +96,9 @@ import {
   getLifeOSSellingHtml,
   getLifeOSRecruitingHtml,
   getLifeOSBrandHtml,
+  getLifeOSBrandYouTubeHtml,
+  getLifeOSBrandInstagramHtml,
+  getLifeOSBrandLinkedInHtml,
   getLifeOSPersonalHtml,
   getLifeOSAgentsHtml,
   getRecruitSignupHtml,
@@ -242,7 +245,7 @@ export function startDashboard(botApi?: Api<RawApi>): void {
       return next();
     }
     // Serve dashboard/Life OS pages (includes login screen) — always accessible
-    const publicPages = ['/', '/selling', '/recruiting', '/brand', '/personal', '/agents', '/ai', '/join'];
+    const publicPages = ['/', '/selling', '/recruiting', '/brand', '/brand/youtube', '/brand/instagram', '/brand/linkedin', '/personal', '/agents', '/ai', '/join'];
     if (publicPages.includes(path) && c.req.method === 'GET') {
       return next();
     }
@@ -267,6 +270,9 @@ export function startDashboard(botApi?: Api<RawApi>): void {
   app.get('/selling', (c) => c.html(getLifeOSSellingHtml(isAuthenticated(c))));
   app.get('/recruiting', (c) => c.html(getLifeOSRecruitingHtml(isAuthenticated(c))));
   app.get('/brand', (c) => c.html(getLifeOSBrandHtml(isAuthenticated(c))));
+  app.get('/brand/youtube', (c) => c.html(getLifeOSBrandYouTubeHtml(isAuthenticated(c))));
+  app.get('/brand/instagram', (c) => c.html(getLifeOSBrandInstagramHtml(isAuthenticated(c))));
+  app.get('/brand/linkedin', (c) => c.html(getLifeOSBrandLinkedInHtml(isAuthenticated(c))));
   app.get('/personal', (c) => c.html(getLifeOSPersonalHtml(isAuthenticated(c))));
   app.get('/agents', (c) => c.html(getLifeOSAgentsHtml(isAuthenticated(c))));
 
@@ -350,10 +356,12 @@ export function startDashboard(botApi?: Api<RawApi>): void {
   // ── Brand: YouTube ────────────────────────────────────────────────────
 
   app.get('/api/brand/youtube', async (c) => {
+    const limitParam = parseInt(c.req.query('limit') ?? '', 10);
+    const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 50) : 3;
     try {
       const [channel, videos] = await Promise.all([
         getYouTubeChannelStats(),
-        getYouTubeRecentVideos(3),
+        getYouTubeRecentVideos(limit),
       ]);
       return c.json({ ok: true, channel, videos });
     } catch (err) {
