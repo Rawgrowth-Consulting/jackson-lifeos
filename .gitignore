@@ -36,6 +36,12 @@ migrations/.applied.json
 # Personal scripts — not for sharing
 scripts/waste-reminder.sh
 
+# Chrome profile used by connext-screenshots puppeteer — local only, huge
+connext-screenshots/chrome-profile/
+
+# Local-only Claude Code settings
+.claude/settings.local.json
+
 # Personal config -- lives in RAWCLAW_CONFIG (default ~/.rawclaw)
 agents/*/agent.yaml
 knowledge/

@@ -27,6 +27,8 @@ const envConfig = readEnvFile([
   'YOUTUBE_CLIENT_SECRET',
   'YOUTUBE_REFRESH_TOKEN',
   'YOUTUBE_CHANNEL_ID',
+  'APIFY_API_TOKEN',
+  'INSTAGRAM_USERNAME',
 ]);
 
 // ── Multi-agent support ──────────────────────────────────────────────
@@ -74,6 +76,9 @@ export const YOUTUBE_CLIENT_ID = envConfig.YOUTUBE_CLIENT_ID ?? '';
 export const YOUTUBE_CLIENT_SECRET = envConfig.YOUTUBE_CLIENT_SECRET ?? '';
 export const YOUTUBE_REFRESH_TOKEN = envConfig.YOUTUBE_REFRESH_TOKEN ?? '';
 export const YOUTUBE_CHANNEL_ID = envConfig.YOUTUBE_CHANNEL_ID ?? '';
+
+export const APIFY_API_TOKEN = envConfig.APIFY_API_TOKEN ?? '';
+export const INSTAGRAM_USERNAME = envConfig.INSTAGRAM_USERNAME ?? 'jacksonrapaport';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

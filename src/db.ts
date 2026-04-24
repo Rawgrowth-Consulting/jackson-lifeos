@@ -720,6 +720,23 @@ function runMigrations(database: Database.Database): void {
     logger.info('Migration: created youtube_snapshots table');
   }
 
+  // ── Instagram follower snapshots ─────────────────────────────────
+  const hasInstagramSnapshots = database.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name='instagram_snapshots'`,
+  ).get();
+  if (!hasInstagramSnapshots) {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS instagram_snapshots (
+        date         TEXT PRIMARY KEY,
+        followers    INTEGER NOT NULL,
+        following    INTEGER NOT NULL,
+        posts_count  INTEGER NOT NULL,
+        created_at   INTEGER NOT NULL
+      );
+    `);
+    logger.info('Migration: created instagram_snapshots table');
+  }
+
   // Recruiting tables have moved to Supabase PostgreSQL — see recruit-db.ts
 }
 
@@ -2667,6 +2684,36 @@ export function getYouTubeSnapshots(): YouTubeSnapshot[] {
   return db.prepare(
     'SELECT date, subscribers, total_views, video_count FROM youtube_snapshots ORDER BY date ASC',
   ).all() as YouTubeSnapshot[];
+}
+
+// ── Instagram snapshots (follower growth over time) ──────────────────
+
+export interface InstagramSnapshot {
+  date: string;         // YYYY-MM-DD
+  followers: number;
+  following: number;
+  posts_count: number;
+}
+
+/** Upsert an Instagram snapshot. Defaults to today; pass `date` (YYYY-MM-DD) for backfill. */
+export function recordInstagramSnapshot(followers: number, following: number, postsCount: number, date?: string): void {
+  const d = date ?? new Date().toISOString().slice(0, 10);
+  db.prepare(
+    `INSERT INTO instagram_snapshots (date, followers, following, posts_count, created_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(date) DO UPDATE SET
+       followers   = excluded.followers,
+       following   = excluded.following,
+       posts_count = excluded.posts_count,
+       created_at  = excluded.created_at`,
+  ).run(d, followers, following, postsCount, Math.floor(Date.now() / 1000));
+}
+
+/** Return snapshots in chronological order (oldest first). */
+export function getInstagramSnapshots(): InstagramSnapshot[] {
+  return db.prepare(
+    'SELECT date, followers, following, posts_count FROM instagram_snapshots ORDER BY date ASC',
+  ).all() as InstagramSnapshot[];
 }
 
 // ── v2: Session clearing (for session compaction) ────────────────────

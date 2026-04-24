@@ -2180,11 +2180,20 @@ export function getLifeOSBrandHtml(authenticated = false): string {
           </div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:16px;font-weight:600;color:var(--color-forest-deep);">Instagram</div>
-            <div style="font-size:11px;color:var(--color-sage-muted);margin-top:2px;">Not connected</div>
+            <div style="font-size:11px;color:var(--color-sage-muted);margin-top:2px;" id="igHubStatus">Loading&hellip;</div>
           </div>
         </div>
-        <p style="font-size:12px;color:var(--color-sage-muted);margin:0 0 16px;line-height:1.5;">Requires Meta App Review (1-2 weeks). Connect once approved.</p>
-        <div style="font-size:11px;color:var(--color-sage);">View details &rarr;</div>
+        <div style="display:flex;gap:20px;">
+          <div>
+            <div class="summary-stat-val" style="font-size:24px;" id="igHubFollowers">&mdash;</div>
+            <div class="summary-stat-label" style="font-size:10px;">Followers</div>
+          </div>
+          <div>
+            <div class="summary-stat-val" style="font-size:24px;" id="igHubPosts">&mdash;</div>
+            <div class="summary-stat-label" style="font-size:10px;">Posts</div>
+          </div>
+        </div>
+        <div style="margin-top:16px;font-size:11px;color:var(--color-sage);">View insights &rarr;</div>
       </div>
     </a>
 
@@ -2226,6 +2235,35 @@ export function getLifeOSBrandHtml(authenticated = false): string {
         document.getElementById('ytHubVideos').textContent = fmt(ch.videoCount || 0);
       })
       .catch(function(){ document.getElementById('ytHubStatus').textContent = 'Network error'; });
+
+    // Instagram hub card — uses the snapshot history endpoint first (fast), then
+    // kicks off the full Apify fetch in the background to refresh numbers.
+    function setIgCard(followers, posts, label) {
+      document.getElementById('igHubStatus').textContent = label;
+      document.getElementById('igHubFollowers').textContent = fmt(followers || 0);
+      document.getElementById('igHubPosts').textContent = fmt(posts || 0);
+    }
+    fetch('/api/brand/instagram/history', { credentials: 'include' })
+      .then(function(r){ return r.json(); })
+      .then(function(hist){
+        var snaps = (hist && hist.snapshots) || [];
+        if (snaps.length) {
+          var last = snaps[snaps.length - 1];
+          setIgCard(last.followers, last.posts_count, '@' + (last.username || 'jacksonrapaport'));
+        } else {
+          document.getElementById('igHubStatus').textContent = 'Fetching&hellip;';
+        }
+        // Trigger a fresh pull so tomorrow's snapshot exists (runs in background, ~30s).
+        fetch('/api/brand/instagram?limit=1', { credentials: 'include' })
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            if (!data || !data.ok) return;
+            var p = data.profile || {};
+            setIgCard(p.followers, p.posts, '@' + (p.username || 'jacksonrapaport'));
+          })
+          .catch(function(){});
+      })
+      .catch(function(){ document.getElementById('igHubStatus').textContent = 'Network error'; });
   })();
   </script>`;
 
@@ -2406,7 +2444,7 @@ export function getLifeOSBrandYouTubeHtml(authenticated = false): string {
   return wrapPage('YouTube', 'brand', body, authenticated);
 }
 
-// ─── Page 4b: Brand → Instagram (not connected) ─────────────────────────────────
+// ─── Page 4b: Brand → Instagram (public data via Apify) ─────────────────────────
 
 export function getLifeOSBrandInstagramHtml(authenticated = false): string {
   const body = `
@@ -2415,17 +2453,177 @@ export function getLifeOSBrandInstagramHtml(authenticated = false): string {
       <a href="/brand" style="color:var(--color-sage);text-decoration:none;">&larr; Brand</a>
     </div>
     <h1 class="serif-display" style="font-size:28px;margin:0 0 6px;color:var(--color-forest-deep);">Instagram</h1>
-    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;">Not yet connected.</p>
+    <p style="font-size:14px;color:var(--color-sage-muted);margin:0 0 24px;" id="igSubtitle">Loading profile&hellip; (first load ~30s while Apify runs)</p>
   </div>
 
-  <div class="card animate-lift-in delay-1" style="padding:32px;text-align:center;">
-    <div style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.9" fill="#fff" stroke="none"/></svg>
+  <!-- Profile header card -->
+  <div class="card animate-lift-in delay-1" style="margin-bottom:24px;display:flex;align-items:center;gap:18px;padding:22px;">
+    <img id="igProfilePic" src="" alt="" style="width:72px;height:72px;border-radius:50%;background:var(--color-stone-50);object-fit:cover;" />
+    <div style="flex:1;min-width:0;">
+      <div class="serif-display" id="igProfileName" style="font-size:20px;color:var(--color-forest-deep);margin-bottom:4px;">&hellip;</div>
+      <div id="igProfileBio" style="font-size:12px;color:var(--color-sage-muted);margin-bottom:6px;white-space:pre-wrap;line-height:1.4;max-width:640px;"></div>
+      <a id="igProfileLink" href="https://www.instagram.com" target="_blank" rel="noopener" style="font-size:12px;color:var(--color-sage);text-decoration:none;">Open on Instagram &rarr;</a>
     </div>
-    <div class="serif-display" style="font-size:20px;color:var(--color-forest-deep);margin-bottom:10px;">Instagram insights not available yet</div>
-    <p style="font-size:13px;color:var(--color-sage-muted);max-width:520px;margin:0 auto 20px;line-height:1.6;">Pulling Instagram analytics requires a Meta App review — typically a 1-2 week process. Steps once ready: convert the account to Business or Creator, link it to a Facebook Page, register the app, submit for review.</p>
-    <a href="https://www.instagram.com/jacksonrapaport/" target="_blank" rel="noopener" style="display:inline-block;padding:10px 20px;border-radius:10px;background:var(--color-sage);color:var(--color-paper);font-size:13px;font-weight:600;text-decoration:none;">Open Instagram insights in app &rarr;</a>
-  </div>`;
+  </div>
+
+  <!-- KPI Row -->
+  <div class="summary-bar animate-lift-in delay-2">
+    <div class="summary-stat"><div class="summary-stat-val" id="igKpiFollowers">&mdash;</div><div class="summary-stat-label">Followers</div></div>
+    <div class="summary-stat"><div class="summary-stat-val" id="igKpiFollowing">&mdash;</div><div class="summary-stat-label">Following</div></div>
+    <div class="summary-stat"><div class="summary-stat-val" id="igKpiPosts">&mdash;</div><div class="summary-stat-label">Posts</div></div>
+    <div class="summary-stat"><div class="summary-stat-val" id="igKpiEngage">&mdash;</div><div class="summary-stat-label">Avg Engage / Recent</div></div>
+  </div>
+
+  <div class="section-title animate-lift-in delay-3">Recent Posts</div>
+  <div class="ig-post-grid animate-lift-in delay-3" id="igPostGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px;">
+    <div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">Loading posts&hellip;</div>
+  </div>
+
+  <div class="section-title animate-lift-in delay-4">Follower Growth</div>
+  <div class="card animate-lift-in delay-4" id="igGrowthCard" style="padding:22px;margin-bottom:24px;">
+    <div id="igGrowthHeader" style="display:flex;align-items:baseline;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
+      <div class="summary-stat-val" style="font-size:28px;" id="igGrowthLatest">&mdash;</div>
+      <div class="summary-stat-label" style="font-size:11px;" id="igGrowthDelta">Tracking will begin today.</div>
+    </div>
+    <div id="igGrowthChart" style="width:100%;">
+      <div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">Loading&hellip;</div>
+    </div>
+    <div id="igGrowthFootnote" style="font-size:11px;color:var(--color-sage-muted);margin-top:10px;"></div>
+  </div>
+
+  <div class="card animate-lift-in delay-5" style="text-align:center;padding:20px;">
+    <a id="igOpenInsights" href="https://www.instagram.com/jacksonrapaport/" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:var(--color-sage);text-decoration:none;">Open Instagram profile &rarr;</a>
+  </div>
+
+  <style>
+    .ig-post-card { display:block; text-decoration:none; color:inherit; border-radius:14px; overflow:hidden; background:var(--color-cream-soft); transition:transform 0.15s ease, box-shadow 0.15s ease; position:relative; }
+    .ig-post-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(5,36,21,0.08); }
+    .ig-post-thumb { width:100%; aspect-ratio:1/1; object-fit:cover; background:var(--color-stone-50); display:block; }
+    .ig-post-badge { position:absolute; top:8px; right:8px; background:rgba(5,36,21,0.75); color:#fff; font-size:10px; font-weight:600; padding:3px 8px; border-radius:999px; letter-spacing:0.02em; }
+    .ig-post-meta { padding:12px 14px; }
+    .ig-post-caption { font-size:13px; font-weight:500; color:var(--color-forest-deep); line-height:1.35; margin-bottom:6px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .ig-post-stats { font-size:11px; color:var(--color-sage-muted); }
+    @media (max-width: 900px) { .ig-post-grid { grid-template-columns:repeat(2,1fr) !important; } }
+    @media (max-width: 560px) { .ig-post-grid { grid-template-columns:1fr !important; } }
+  </style>
+
+  <script>
+  (function(){
+    function fmt(n){ if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return String(n); }
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function shortDate(iso){ try { var d=new Date(iso); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); } catch (e) { return ''; } }
+    function shortDateOnly(iso){ try { var d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); } catch (e) { return iso; } }
+
+    function renderGrowth(snaps) {
+      var chart = document.getElementById('igGrowthChart');
+      var latest = document.getElementById('igGrowthLatest');
+      var delta = document.getElementById('igGrowthDelta');
+      var foot = document.getElementById('igGrowthFootnote');
+      if (!chart) return;
+
+      if (!snaps || snaps.length === 0) {
+        chart.innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;text-align:center;">No snapshots yet. Reload the page once the profile above populates and today will be logged.</div>';
+        return;
+      }
+
+      var last = snaps[snaps.length - 1];
+      latest.textContent = fmt(last.followers) + ' followers';
+
+      if (snaps.length === 1) {
+        delta.textContent = 'First snapshot — ' + shortDateOnly(last.date) + '. Come back tomorrow for a line.';
+      } else {
+        var first = snaps[0];
+        var diff = last.followers - first.followers;
+        var sign = diff >= 0 ? '+' : '';
+        delta.innerHTML = '<span style="color:' + (diff >= 0 ? 'var(--color-sage)' : 'var(--color-clay)') + ';">' + sign + fmt(diff) + '</span> since ' + shortDateOnly(first.date);
+        foot.textContent = snaps.length + ' daily snapshots · newest ' + shortDateOnly(last.date);
+      }
+
+      var W = 800, H = 200, pad = 30;
+      var min = Math.min.apply(null, snaps.map(function(s){ return s.followers; }));
+      var max = Math.max.apply(null, snaps.map(function(s){ return s.followers; }));
+      if (min === max) { min = min - 1; max = max + 1; }
+      var xStep = snaps.length > 1 ? (W - pad * 2) / (snaps.length - 1) : 0;
+      var yScale = (H - pad * 2) / (max - min);
+      var pts = snaps.map(function(s, i){
+        var x = snaps.length === 1 ? W / 2 : pad + i * xStep;
+        var y = H - pad - (s.followers - min) * yScale;
+        return { x: x, y: y, date: s.date, followers: s.followers };
+      });
+      var polyline = pts.map(function(p){ return p.x + ',' + p.y; }).join(' ');
+      var area = 'M' + pts[0].x + ',' + (H - pad) + ' L' + pts.map(function(p){ return p.x + ',' + p.y; }).join(' L') + ' L' + pts[pts.length - 1].x + ',' + (H - pad) + ' Z';
+      var dots = pts.map(function(p){
+        return '<circle cx="' + p.x + '" cy="' + p.y + '" r="4" fill="var(--color-sage)" stroke="var(--color-cream)" stroke-width="2"><title>' + p.date + ' · ' + fmt(p.followers) + ' followers</title></circle>';
+      }).join('');
+      var yMaxLabel = '<text x="' + (pad - 6) + '" y="' + (pad + 4) + '" text-anchor="end" font-size="10" fill="var(--color-sage-muted)">' + fmt(max) + '</text>';
+      var yMinLabel = '<text x="' + (pad - 6) + '" y="' + (H - pad + 4) + '" text-anchor="end" font-size="10" fill="var(--color-sage-muted)">' + fmt(min) + '</text>';
+      var xStartLabel = '<text x="' + pad + '" y="' + (H - 8) + '" text-anchor="start" font-size="10" fill="var(--color-sage-muted)">' + shortDateOnly(snaps[0].date) + '</text>';
+      var xEndLabel = snaps.length > 1 ? '<text x="' + (W - pad) + '" y="' + (H - 8) + '" text-anchor="end" font-size="10" fill="var(--color-sage-muted)">' + shortDateOnly(last.date) + '</text>' : '';
+
+      chart.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" preserveAspectRatio="xMidYMid meet">' +
+        '<path d="' + area + '" fill="var(--color-sage)" opacity="0.08" />' +
+        (snaps.length > 1 ? '<polyline points="' + polyline + '" fill="none" stroke="var(--color-sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />' : '') +
+        dots + yMaxLabel + yMinLabel + xStartLabel + xEndLabel +
+        '</svg>';
+    }
+
+    fetch('/api/brand/instagram?limit=12', { credentials: 'include' })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) {
+          var msg = data.error === 'Unauthorized' ? 'Log in to view Instagram data.' : ('Instagram error: ' + (data.error || 'unknown'));
+          document.getElementById('igSubtitle').textContent = msg;
+          document.getElementById('igPostGrid').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">' + msg + '</div>';
+          document.getElementById('igGrowthChart').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">' + msg + '</div>';
+          return;
+        }
+        var p = data.profile || {}; var posts = data.posts || [];
+        document.getElementById('igProfilePic').src = p.profilePic || '';
+        document.getElementById('igProfileName').textContent = (p.fullName || p.username || '@' + (p.username || 'instagram')) + (p.verified ? ' ✓' : '');
+        document.getElementById('igProfileBio').textContent = p.biography || '';
+        document.getElementById('igSubtitle').textContent = 'Live profile data via Apify — public metrics, refreshes every 30 min.';
+        if (p.username) {
+          var url = 'https://www.instagram.com/' + p.username + '/';
+          document.getElementById('igProfileLink').href = url;
+          document.getElementById('igOpenInsights').href = url;
+        }
+
+        document.getElementById('igKpiFollowers').textContent = fmt(p.followers || 0);
+        document.getElementById('igKpiFollowing').textContent = fmt(p.following || 0);
+        document.getElementById('igKpiPosts').textContent = fmt(p.posts || 0);
+        var eng = posts.length > 0 ? Math.round(posts.reduce(function(s,v){ return s + (v.likes||0) + (v.comments||0); },0) / posts.length) : 0;
+        document.getElementById('igKpiEngage').textContent = fmt(eng);
+
+        if (posts.length === 0) {
+          document.getElementById('igPostGrid').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;grid-column:1/-1;">No public posts found.</div>';
+        } else {
+          document.getElementById('igPostGrid').innerHTML = posts.map(function(v){
+            var badge = v.type && v.type !== 'Image' ? '<div class="ig-post-badge">' + esc(v.type) + '</div>' : '';
+            var caption = (v.caption || '').split('\\n')[0].slice(0, 100);
+            var stats = fmt(v.likes||0) + ' likes · ' + fmt(v.comments||0) + ' comments';
+            if (v.views) stats += ' · ' + fmt(v.views) + ' views';
+            return '<a class="ig-post-card" href="' + esc(v.url) + '" target="_blank" rel="noopener">' +
+              '<img class="ig-post-thumb" src="' + esc(v.thumbnail) + '" alt="" referrerpolicy="no-referrer" />' +
+              badge +
+              '<div class="ig-post-meta">' +
+                '<div class="ig-post-caption">' + (caption ? esc(caption) : '<em style="color:var(--color-sage-muted);font-weight:400;">(no caption)</em>') + '</div>' +
+                '<div class="ig-post-stats">' + shortDate(v.timestamp) + ' · ' + stats + '</div>' +
+              '</div>' +
+            '</a>';
+          }).join('');
+        }
+
+        return fetch('/api/brand/instagram/history', { credentials: 'include' })
+          .then(function(r){ return r.json(); })
+          .then(function(hist){ renderGrowth((hist && hist.snapshots) || []); });
+      })
+      .catch(function(err){
+        document.getElementById('igSubtitle').textContent = 'Network error.';
+        document.getElementById('igPostGrid').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">Network error.</div>';
+        document.getElementById('igGrowthChart').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">Network error.</div>';
+      });
+  })();
+  </script>`;
 
   return wrapPage('Instagram', 'brand', body, authenticated);
 }

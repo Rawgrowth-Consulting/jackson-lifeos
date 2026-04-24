@@ -51,6 +51,8 @@ import {
   deleteSellingDocument,
   recordYouTubeSnapshot,
   getYouTubeSnapshots,
+  recordInstagramSnapshot,
+  getInstagramSnapshots,
 } from './db.js';
 import {
   insertRecruit,
@@ -75,6 +77,7 @@ import {
 } from './recruit-db.js';
 import { generateContent, parseJsonResponse } from './gemini.js';
 import { getChannelStats as getYouTubeChannelStats, getRecentVideos as getYouTubeRecentVideos } from './youtube.js';
+import { getProfile as getInstagramProfile, getRecentPosts as getInstagramRecentPosts } from './instagram.js';
 import { notifyRecruitStageChange } from './recruit-notify.js';
 import { getSecurityStatus } from './security.js';
 import { listAgentIds, loadAgentConfig, setAgentModel } from './agent-config.js';
@@ -381,6 +384,34 @@ export function startDashboard(botApi?: Api<RawApi>): void {
 
   app.get('/api/brand/youtube/history', (c) => {
     const snapshots = getYouTubeSnapshots();
+    return c.json({ ok: true, snapshots });
+  });
+
+  // ── Brand: Instagram (via Apify — no Meta App Review required) ────────
+
+  app.get('/api/brand/instagram', async (c) => {
+    const limitParam = parseInt(c.req.query('limit') ?? '', 10);
+    const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 50) : 12;
+    try {
+      const [profile, posts] = await Promise.all([
+        getInstagramProfile(),
+        getInstagramRecentPosts(limit),
+      ]);
+      try {
+        recordInstagramSnapshot(profile.followers, profile.following, profile.posts);
+      } catch (err) {
+        logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'Instagram snapshot write failed');
+      }
+      return c.json({ ok: true, profile, posts });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn({ err: message }, 'Instagram Apify call failed');
+      return c.json({ ok: false, error: message }, 503);
+    }
+  });
+
+  app.get('/api/brand/instagram/history', (c) => {
+    const snapshots = getInstagramSnapshots();
     return c.json({ ok: true, snapshots });
   });
 
