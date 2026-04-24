@@ -22,7 +22,7 @@ Local machines are for editing only. All paths in code must resolve on the VPS (
 ./deploy.sh --tunnel    # SSH -L tunnel dashboard to localhost:3141
 ```
 
-The dashboard is never exposed publicly — it's reached via `--tunnel`.
+The dashboard is public at **https://jackson.rawgrowth.ai** — gated by the password/PIN set in `DASHBOARD_TOKEN` / `SECURITY_PIN_HASH`. `--tunnel` is still available for debugging against `localhost:3141` without going through the public hostname.
 
 ## Commands
 
