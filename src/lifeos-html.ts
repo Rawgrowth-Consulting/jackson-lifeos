@@ -2610,7 +2610,7 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
       container.innerHTML =
         '<div class="tree">' +
           '<div class="root">' +
-            '<div>' +
+            '<div style="text-align:center;display:inline-block;">' +
               jacksonCard +
               gurtBranch +
             '</div>' +
