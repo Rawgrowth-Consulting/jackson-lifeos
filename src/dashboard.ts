@@ -49,6 +49,8 @@ import {
   getSellingDocuments,
   getSellingDocument,
   deleteSellingDocument,
+  recordYouTubeSnapshot,
+  getYouTubeSnapshots,
 } from './db.js';
 import {
   insertRecruit,
@@ -363,12 +365,23 @@ export function startDashboard(botApi?: Api<RawApi>): void {
         getYouTubeChannelStats(),
         getYouTubeRecentVideos(limit),
       ]);
+      // Opportunistic snapshot — upserts today's row so the growth chart builds over time.
+      try {
+        recordYouTubeSnapshot(channel.subscribers, channel.totalViews, channel.videoCount);
+      } catch (err) {
+        logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'YouTube snapshot write failed');
+      }
       return c.json({ ok: true, channel, videos });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.warn({ err: message }, 'YouTube API call failed');
       return c.json({ ok: false, error: message }, 503);
     }
+  });
+
+  app.get('/api/brand/youtube/history', (c) => {
+    const snapshots = getYouTubeSnapshots();
+    return c.json({ ok: true, snapshots });
   });
 
   // ── Recruiting: Public pages & token-authenticated API ───────────────

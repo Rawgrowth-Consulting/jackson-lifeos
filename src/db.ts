@@ -703,6 +703,23 @@ function runMigrations(database: Database.Database): void {
     logger.info('Migration: created selling_documents table');
   }
 
+  // ── YouTube subscriber snapshots ─────────────────────────────────
+  const hasYouTubeSnapshots = database.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name='youtube_snapshots'`,
+  ).get();
+  if (!hasYouTubeSnapshots) {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS youtube_snapshots (
+        date         TEXT PRIMARY KEY,
+        subscribers  INTEGER NOT NULL,
+        total_views  INTEGER NOT NULL,
+        video_count  INTEGER NOT NULL,
+        created_at   INTEGER NOT NULL
+      );
+    `);
+    logger.info('Migration: created youtube_snapshots table');
+  }
+
   // Recruiting tables have moved to Supabase PostgreSQL — see recruit-db.ts
 }
 
@@ -2620,6 +2637,36 @@ export function getSellingDocument(id: string): SellingDocument | undefined {
 export function deleteSellingDocument(id: string): boolean {
   const result = db.prepare('DELETE FROM selling_documents WHERE id = ?').run(id);
   return result.changes > 0;
+}
+
+// ── YouTube snapshots (subscriber growth over time) ──────────────────
+
+export interface YouTubeSnapshot {
+  date: string;         // YYYY-MM-DD
+  subscribers: number;
+  total_views: number;
+  video_count: number;
+}
+
+/** Upsert today's YouTube snapshot. Called opportunistically on each API fetch. */
+export function recordYouTubeSnapshot(subs: number, views: number, videos: number): void {
+  const date = new Date().toISOString().slice(0, 10);
+  db.prepare(
+    `INSERT INTO youtube_snapshots (date, subscribers, total_views, video_count, created_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(date) DO UPDATE SET
+       subscribers = excluded.subscribers,
+       total_views = excluded.total_views,
+       video_count = excluded.video_count,
+       created_at  = excluded.created_at`,
+  ).run(date, subs, views, videos, Math.floor(Date.now() / 1000));
+}
+
+/** Return snapshots in chronological order (oldest first). */
+export function getYouTubeSnapshots(): YouTubeSnapshot[] {
+  return db.prepare(
+    'SELECT date, subscribers, total_views, video_count FROM youtube_snapshots ORDER BY date ASC',
+  ).all() as YouTubeSnapshot[];
 }
 
 // ── v2: Session clearing (for session compaction) ────────────────────

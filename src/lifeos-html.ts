@@ -2266,9 +2266,96 @@ export function getLifeOSBrandYouTubeHtml(authenticated = false): string {
     <div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">Loading videos&hellip;</div>
   </div>
 
-  <div class="card animate-lift-in delay-4" style="text-align:center;padding:20px;">
+  <div class="section-title animate-lift-in delay-4">Subscriber Growth</div>
+  <div class="card animate-lift-in delay-4" id="ytGrowthCard" style="padding:22px;margin-bottom:24px;">
+    <div id="ytGrowthHeader" style="display:flex;align-items:baseline;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
+      <div class="summary-stat-val" style="font-size:28px;" id="ytGrowthLatest">&mdash;</div>
+      <div class="summary-stat-label" style="font-size:11px;" id="ytGrowthDelta">Tracking will begin today.</div>
+    </div>
+    <div id="ytGrowthChart" style="width:100%;">
+      <div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">Loading&hellip;</div>
+    </div>
+    <div id="ytGrowthFootnote" style="font-size:11px;color:var(--color-sage-muted);margin-top:10px;"></div>
+  </div>
+
+  <div class="card animate-lift-in delay-5" style="text-align:center;padding:20px;">
     <a href="https://studio.youtube.com" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:var(--color-sage);text-decoration:none;">Open YouTube Studio &rarr;</a>
   </div>
+
+  <script>
+  (function(){
+    function fmt(n){ if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return String(n); }
+    function shortDate(iso){ try { var d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); } catch { return iso; } }
+
+    fetch('/api/brand/youtube/history', { credentials: 'include' })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var snaps = (data && data.snapshots) || [];
+        var chart = document.getElementById('ytGrowthChart');
+        var latest = document.getElementById('ytGrowthLatest');
+        var delta = document.getElementById('ytGrowthDelta');
+        var foot = document.getElementById('ytGrowthFootnote');
+
+        if (snaps.length === 0) {
+          chart.innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;text-align:center;">No snapshots yet. Reload after the YouTube card above populates — today\\'s subscriber count will be logged, and the graph will grow from there.</div>';
+          return;
+        }
+
+        var last = snaps[snaps.length - 1];
+        latest.textContent = fmt(last.subscribers) + ' subs';
+
+        if (snaps.length === 1) {
+          delta.textContent = 'First snapshot — ' + shortDate(last.date) + '. Come back tomorrow for a line.';
+        } else {
+          var first = snaps[0];
+          var diff = last.subscribers - first.subscribers;
+          var sign = diff >= 0 ? '+' : '';
+          delta.innerHTML = '<span style="color:' + (diff >= 0 ? 'var(--color-sage)' : 'var(--color-clay)') + ';">' + sign + fmt(diff) + '</span> since ' + shortDate(first.date);
+          foot.textContent = snaps.length + ' daily snapshots · newest ' + shortDate(last.date);
+        }
+
+        // Draw SVG chart
+        var W = 800, H = 200, pad = 30;
+        var min = Math.min.apply(null, snaps.map(function(s){ return s.subscribers; }));
+        var max = Math.max.apply(null, snaps.map(function(s){ return s.subscribers; }));
+        if (min === max) { min = min - 1; max = max + 1; } // avoid divide-by-zero
+
+        var xStep = snaps.length > 1 ? (W - pad * 2) / (snaps.length - 1) : 0;
+        var yScale = (H - pad * 2) / (max - min);
+
+        var pts = snaps.map(function(s, i){
+          var x = pad + i * xStep;
+          var y = H - pad - (s.subscribers - min) * yScale;
+          return { x: x, y: y, date: s.date, subs: s.subscribers };
+        });
+
+        if (snaps.length === 1) {
+          pts[0].x = W / 2;
+        }
+
+        var polyline = pts.map(function(p){ return p.x + ',' + p.y; }).join(' ');
+        var area = 'M' + pts[0].x + ',' + (H - pad) + ' L' + pts.map(function(p){ return p.x + ',' + p.y; }).join(' L') + ' L' + pts[pts.length - 1].x + ',' + (H - pad) + ' Z';
+
+        var dots = pts.map(function(p){
+          return '<circle cx="' + p.x + '" cy="' + p.y + '" r="4" fill="var(--color-sage)" stroke="var(--color-cream)" stroke-width="2"><title>' + p.date + ' · ' + fmt(p.subs) + ' subs</title></circle>';
+        }).join('');
+
+        var yMaxLabel = '<text x="' + (pad - 6) + '" y="' + (pad + 4) + '" text-anchor="end" font-size="10" fill="var(--color-sage-muted)">' + fmt(max) + '</text>';
+        var yMinLabel = '<text x="' + (pad - 6) + '" y="' + (H - pad + 4) + '" text-anchor="end" font-size="10" fill="var(--color-sage-muted)">' + fmt(min) + '</text>';
+        var xStartLabel = '<text x="' + pad + '" y="' + (H - 8) + '" text-anchor="start" font-size="10" fill="var(--color-sage-muted)">' + shortDate(snaps[0].date) + '</text>';
+        var xEndLabel = snaps.length > 1 ? '<text x="' + (W - pad) + '" y="' + (H - 8) + '" text-anchor="end" font-size="10" fill="var(--color-sage-muted)">' + shortDate(last.date) + '</text>' : '';
+
+        chart.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" preserveAspectRatio="xMidYMid meet">' +
+          '<path d="' + area + '" fill="var(--color-sage)" opacity="0.08" />' +
+          (snaps.length > 1 ? '<polyline points="' + polyline + '" fill="none" stroke="var(--color-sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />' : '') +
+          dots + yMaxLabel + yMinLabel + xStartLabel + xEndLabel +
+          '</svg>';
+      })
+      .catch(function(){
+        document.getElementById('ytGrowthChart').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:14px;">Could not load growth data.</div>';
+      });
+  })();
+  </script>
 
   <style>
     .yt-video-card { display:block; text-decoration:none; color:inherit; border-radius:14px; overflow:hidden; background:var(--color-cream-soft); transition:transform 0.15s ease, box-shadow 0.15s ease; }
