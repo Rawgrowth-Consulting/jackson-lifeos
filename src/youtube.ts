@@ -1,5 +1,9 @@
-import { YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN } from './config.js';
+import { YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN, YOUTUBE_CHANNEL_ID } from './config.js';
 import { logger } from './logger.js';
+
+// When YOUTUBE_CHANNEL_ID is set, pull public data for that channel by ID.
+// Otherwise fall back to `mine=true` (the authenticated user's own channel).
+const channelQuery = YOUTUBE_CHANNEL_ID ? `id=${YOUTUBE_CHANNEL_ID}` : 'mine=true';
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
@@ -64,10 +68,10 @@ export async function getChannelStats(): Promise<ChannelStats> {
       snippet: { title: string; thumbnails: { default: { url: string } } };
       statistics: { subscriberCount: string; viewCount: string; videoCount: string };
     }>;
-  }>('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true');
+  }>(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&${channelQuery}`);
 
   const c = data.items[0];
-  if (!c) throw new Error('No channel found on this account');
+  if (!c) throw new Error('No channel found');
 
   return {
     id: c.id,
@@ -92,7 +96,7 @@ export interface VideoStats {
 export async function getRecentVideos(limit = 10): Promise<VideoStats[]> {
   const channel = await ytFetch<{
     items: Array<{ contentDetails: { relatedPlaylists: { uploads: string } } }>;
-  }>('https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true');
+  }>(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&${channelQuery}`);
 
   const uploadsId = channel.items[0]?.contentDetails.relatedPlaylists.uploads;
   if (!uploadsId) return [];

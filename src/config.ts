@@ -26,6 +26,7 @@ const envConfig = readEnvFile([
   'YOUTUBE_CLIENT_ID',
   'YOUTUBE_CLIENT_SECRET',
   'YOUTUBE_REFRESH_TOKEN',
+  'YOUTUBE_CHANNEL_ID',
 ]);
 
 // ── Multi-agent support ──────────────────────────────────────────────
@@ -72,6 +73,7 @@ export const ELEVENLABS_VOICE_ID = envConfig.ELEVENLABS_VOICE_ID ?? '';
 export const YOUTUBE_CLIENT_ID = envConfig.YOUTUBE_CLIENT_ID ?? '';
 export const YOUTUBE_CLIENT_SECRET = envConfig.YOUTUBE_CLIENT_SECRET ?? '';
 export const YOUTUBE_REFRESH_TOKEN = envConfig.YOUTUBE_REFRESH_TOKEN ?? '';
+export const YOUTUBE_CHANNEL_ID = envConfig.YOUTUBE_CHANNEL_ID ?? '';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
