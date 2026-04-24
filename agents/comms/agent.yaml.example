@@ -4,11 +4,3 @@ description: All human communication -- email, Slack, WhatsApp, YouTube comments
 telegram_bot_token_env: COMMS_BOT_TOKEN
 
 model: claude-sonnet-4-6
-
-obsidian:
-  vault: /path/to/your/obsidian/vault
-  folders:
-    - Projects/
-    - Inbox/
-  read_only:
-    - Daily Notes/

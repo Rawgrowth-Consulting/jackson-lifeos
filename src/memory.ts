@@ -1,4 +1,4 @@
-import { agentObsidianConfig, GOOGLE_API_KEY } from './config.js';
+import { GOOGLE_API_KEY } from './config.js';
 import {
   batchUpdateMemoryRelevance,
   decayMemories,
@@ -20,7 +20,6 @@ import { cosineSimilarity, embedText } from './embeddings.js';
 import { generateContent, parseJsonResponse } from './gemini.js';
 import { logger } from './logger.js';
 import { ingestConversationTurn } from './memory-ingest.js';
-import { buildObsidianContext } from './obsidian.js';
 import { evaluateSkillCreation } from './skill-ingest.js';
 
 /**
@@ -125,7 +124,7 @@ export async function buildMemoryContext(
     }
   }
 
-  if (memLines.length === 0 && insightLines.length === 0 && !agentObsidianConfig) {
+  if (memLines.length === 0 && insightLines.length === 0) {
     return { contextText: '', surfacedMemoryIds: [], surfacedMemorySummaries: new Map() };
   }
 
@@ -177,9 +176,6 @@ export async function buildMemoryContext(
       parts.push(`[Conversation history recall]\n${historyLines.join('\n')}\n[End conversation history]`);
     }
   }
-
-  const obsidianBlock = buildObsidianContext(agentObsidianConfig);
-  if (obsidianBlock) parts.push(obsidianBlock);
 
   return { contextText: parts.join('\n\n'), surfacedMemoryIds: [...seen], surfacedMemorySummaries: summaryMap };
 }

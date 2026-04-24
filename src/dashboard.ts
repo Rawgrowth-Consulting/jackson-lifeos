@@ -72,6 +72,7 @@ import {
   type RecruitQualification,
 } from './recruit-db.js';
 import { generateContent, parseJsonResponse } from './gemini.js';
+import { getChannelStats as getYouTubeChannelStats, getRecentVideos as getYouTubeRecentVideos } from './youtube.js';
 import { notifyRecruitStageChange } from './recruit-notify.js';
 import { getSecurityStatus } from './security.js';
 import { listAgentIds, loadAgentConfig, setAgentModel } from './agent-config.js';
@@ -344,6 +345,22 @@ export function startDashboard(botApi?: Api<RawApi>): void {
 
     deleteSellingDocument(doc.id);
     return c.json({ ok: true });
+  });
+
+  // ── Brand: YouTube ────────────────────────────────────────────────────
+
+  app.get('/api/brand/youtube', async (c) => {
+    try {
+      const [channel, videos] = await Promise.all([
+        getYouTubeChannelStats(),
+        getYouTubeRecentVideos(3),
+      ]);
+      return c.json({ ok: true, channel, videos });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn({ err: message }, 'YouTube API call failed');
+      return c.json({ ok: false, error: message }, 503);
+    }
   });
 
   // ── Recruiting: Public pages & token-authenticated API ───────────────

@@ -28,7 +28,6 @@ import {
   activeBotToken,
   STORE_DIR,
   PROJECT_ROOT,
-  RAWCLAW_CONFIG,
   GOOGLE_API_KEY,
   setAgentOverrides,
   SECURITY_PIN_HASH,
@@ -95,16 +94,15 @@ if (AGENT_ID !== 'main') {
     botToken: agentConfig.botToken,
     cwd: agentDir,
     model: agentConfig.model,
-    obsidian: agentConfig.obsidian,
     systemPrompt,
   });
   logger.info({ agentId: AGENT_ID, name: agentConfig.name }, 'Running as agent');
 } else {
-  const externalClaudeMd = path.join(RAWCLAW_CONFIG, 'CLAUDE.md');
-  if (fs.existsSync(externalClaudeMd)) {
+  const projectClaudeMd = path.join(PROJECT_ROOT, 'CLAUDE.md');
+  if (fs.existsSync(projectClaudeMd)) {
     let systemPrompt: string | undefined;
     try {
-      systemPrompt = fs.readFileSync(externalClaudeMd, 'utf-8');
+      systemPrompt = fs.readFileSync(projectClaudeMd, 'utf-8');
     } catch { /* unreadable */ }
     if (systemPrompt) {
       setAgentOverrides({
@@ -113,13 +111,10 @@ if (AGENT_ID !== 'main') {
         cwd: PROJECT_ROOT,
         systemPrompt,
       });
-      logger.info({ source: externalClaudeMd }, 'Loaded CLAUDE.md from RAWCLAW_CONFIG');
+      logger.info({ source: projectClaudeMd }, 'Loaded CLAUDE.md');
     }
-  } else if (!fs.existsSync(path.join(PROJECT_ROOT, 'CLAUDE.md'))) {
-    logger.warn(
-      'No CLAUDE.md found. Copy CLAUDE.md.example to %s/CLAUDE.md and customize it.',
-      RAWCLAW_CONFIG,
-    );
+  } else {
+    logger.warn('No CLAUDE.md found at %s.', projectClaudeMd);
   }
 }
 

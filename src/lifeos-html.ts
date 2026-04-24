@@ -2192,26 +2192,53 @@ export function getLifeOSBrandHtml(authenticated = false): string {
     </div>
 
     <!-- YouTube -->
-    <div class="card" style="margin-bottom:0;">
+    <div class="card" style="margin-bottom:0;" id="ytCard">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <div style="width:40px;height:40px;border-radius:12px;background:#ff0000;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;font-weight:700;">YT</div>
-        <div>
-          <div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);">YouTube</div>
-          <div style="font-size:11px;color:var(--color-sage-muted);">2.1K subs &middot; 1.2K avg views</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:600;color:var(--color-forest-deep);" id="ytTitle">YouTube</div>
+          <div style="font-size:11px;color:var(--color-sage-muted);" id="ytSubtitle">Loading&hellip;</div>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">
-          <span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">Apr 21</span><br>"How I built a $500K book in 18 months" — 3.1K views
-        </div>
-        <div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">
-          <span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">Apr 14</span><br>"Day in the life of an insurance agent" — 1.8K views
-        </div>
-        <div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">
-          <span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">Apr 7</span><br>"Mutual of Omaha vs Aetna — honest review" — 980 views
-        </div>
+      <div style="display:flex;flex-direction:column;gap:8px;" id="ytVideos">
+        <div style="font-size:12px;color:var(--color-sage-muted);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;text-align:center;">Loading recent videos&hellip;</div>
       </div>
     </div>
+    <script>
+    (function(){
+      function fmt(n){ if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return String(n); }
+      function shortDate(iso){ try { var d=new Date(iso); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); } catch { return ''; } }
+      fetch('/api/brand/youtube', { credentials: 'include' })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          if (!data.ok) {
+            document.getElementById('ytSubtitle').textContent = 'Unavailable';
+            document.getElementById('ytVideos').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">' + (data.error || 'YouTube API error') + '</div>';
+            return;
+          }
+          var ch = data.channel || {};
+          var vids = data.videos || [];
+          document.getElementById('ytTitle').textContent = ch.title || 'YouTube';
+          var avg = vids.length > 0 ? Math.round(vids.reduce(function(s,v){return s+(v.views||0);},0) / vids.length) : 0;
+          document.getElementById('ytSubtitle').textContent = fmt(ch.subscribers||0) + ' subs · ' + fmt(avg) + ' avg views';
+          if (vids.length === 0) {
+            document.getElementById('ytVideos').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;text-align:center;">No public videos yet</div>';
+            return;
+          }
+          document.getElementById('ytVideos').innerHTML = vids.slice(0,3).map(function(v){
+            var dateStr = shortDate(v.publishedAt);
+            var title = (v.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            return '<div style="font-size:12px;color:var(--color-forest-deep);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">' +
+              '<span style="color:var(--color-sage-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">' + dateStr + '</span><br>"' +
+              title + '" — ' + fmt(v.views||0) + ' views</div>';
+          }).join('');
+        })
+        .catch(function(err){
+          document.getElementById('ytSubtitle').textContent = 'Unavailable';
+          document.getElementById('ytVideos').innerHTML = '<div style="font-size:12px;color:var(--color-sage-muted);padding:10px 12px;background:var(--color-cream-soft);border-radius:10px;">Network error</div>';
+        });
+    })();
+    </script>
 
     <!-- LinkedIn -->
     <div class="card" style="margin-bottom:0;">

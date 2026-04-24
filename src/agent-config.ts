@@ -11,11 +11,6 @@ export interface AgentConfig {
   botTokenEnv: string;
   botToken: string;
   model?: string;
-  obsidian?: {
-    vault: string;
-    folders: string[];
-    readOnly?: string[];
-  };
 }
 
 /**
@@ -71,23 +66,7 @@ export function loadAgentConfig(agentId: string): AgentConfig {
     throw new Error(`Bot token not found: set ${botTokenEnv} in .env`);
   }
 
-  let obsidian: AgentConfig['obsidian'];
-  const obsRaw = raw['obsidian'] as Record<string, unknown> | undefined;
-  if (obsRaw) {
-    const vault = obsRaw['vault'] as string;
-    if (vault && !fs.existsSync(vault)) {
-      // eslint-disable-next-line no-console
-      console.warn(`[${agentId}] WARNING: Obsidian vault path does not exist: ${vault}`);
-      console.warn(`[${agentId}] Update obsidian.vault in agent.yaml to your local vault path.`);
-    }
-    obsidian = {
-      vault,
-      folders: (obsRaw['folders'] as string[]) ?? [],
-      readOnly: (obsRaw['read_only'] as string[]) ?? [],
-    };
-  }
-
-  return { name, description, botTokenEnv, botToken, model, obsidian };
+  return { name, description, botTokenEnv, botToken, model };
 }
 
 /** Update the model field in an agent's agent.yaml file. */

@@ -23,6 +23,9 @@ const envConfig = readEnvFile([
   'SECURITY_PIN_HASH',
   'IDLE_LOCK_MINUTES',
   'EMERGENCY_KILL_PHRASE',
+  'YOUTUBE_CLIENT_ID',
+  'YOUTUBE_CLIENT_SECRET',
+  'YOUTUBE_REFRESH_TOKEN',
 ]);
 
 // ── Multi-agent support ──────────────────────────────────────────────
@@ -32,7 +35,6 @@ export let activeBotToken =
   process.env.TELEGRAM_BOT_TOKEN || envConfig.TELEGRAM_BOT_TOKEN || '';
 export let agentCwd: string | undefined; // undefined = use PROJECT_ROOT
 export let agentDefaultModel: string | undefined; // from agent.yaml
-export let agentObsidianConfig: { vault: string; folders: string[]; readOnly?: string[] } | undefined;
 export let agentSystemPrompt: string | undefined; // loaded from agents/{id}/CLAUDE.md
 
 export function setAgentOverrides(opts: {
@@ -40,14 +42,12 @@ export function setAgentOverrides(opts: {
   botToken: string;
   cwd: string;
   model?: string;
-  obsidian?: { vault: string; folders: string[]; readOnly?: string[] };
   systemPrompt?: string;
 }): void {
   AGENT_ID = opts.agentId;
   activeBotToken = opts.botToken;
   agentCwd = opts.cwd;
   agentDefaultModel = opts.model;
-  agentObsidianConfig = opts.obsidian;
   agentSystemPrompt = opts.systemPrompt;
 }
 
@@ -68,6 +68,10 @@ export const SLACK_USER_TOKEN =
 export const GROQ_API_KEY = envConfig.GROQ_API_KEY ?? '';
 export const ELEVENLABS_API_KEY = envConfig.ELEVENLABS_API_KEY ?? '';
 export const ELEVENLABS_VOICE_ID = envConfig.ELEVENLABS_VOICE_ID ?? '';
+
+export const YOUTUBE_CLIENT_ID = envConfig.YOUTUBE_CLIENT_ID ?? '';
+export const YOUTUBE_CLIENT_SECRET = envConfig.YOUTUBE_CLIENT_SECRET ?? '';
+export const YOUTUBE_REFRESH_TOKEN = envConfig.YOUTUBE_REFRESH_TOKEN ?? '';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -4,12 +4,3 @@ description: YouTube scripts, LinkedIn posts, carousels, trend research, content
 telegram_bot_token_env: CONTENT_BOT_TOKEN
 
 model: claude-sonnet-4-6
-
-obsidian:
-  vault: /path/to/your/obsidian/vault
-  folders:
-    - YouTube/
-    - Content/
-    - Teaching/
-  read_only:
-    - Daily Notes/

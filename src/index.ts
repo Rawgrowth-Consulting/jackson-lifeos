@@ -4,7 +4,7 @@ import path from 'path';
 import { loadAgentConfig, resolveAgentDir, resolveAgentClaudeMd } from './agent-config.js';
 import { createBot } from './bot.js';
 import { checkPendingMigrations } from './migrations.js';
-import { ALLOWED_CHAT_ID, activeBotToken, STORE_DIR, PROJECT_ROOT, RAWCLAW_CONFIG, GOOGLE_API_KEY, setAgentOverrides, SECURITY_PIN_HASH, IDLE_LOCK_MINUTES, EMERGENCY_KILL_PHRASE } from './config.js';
+import { ALLOWED_CHAT_ID, activeBotToken, STORE_DIR, PROJECT_ROOT, GOOGLE_API_KEY, setAgentOverrides, SECURITY_PIN_HASH, IDLE_LOCK_MINUTES, EMERGENCY_KILL_PHRASE } from './config.js';
 import { startDashboard } from './dashboard.js';
 import { initDatabase, cleanupOldMissionTasks, insertAuditLog, getDbTableNames, getMemoryCount, getAllScheduledTasks, insertHeartbeatRun, updateHeartbeatRun, getTokenSpendForBudget, getBudgetPolicies, clearSessionForAgent } from './db.js';
 import { initSecurity, setAuditCallback } from './security.js';
@@ -47,26 +47,15 @@ if (AGENT_ID !== 'main') {
     botToken: agentConfig.botToken,
     cwd: agentDir,
     model: agentConfig.model,
-    obsidian: agentConfig.obsidian,
     systemPrompt,
   });
   logger.info({ agentId: AGENT_ID, name: agentConfig.name }, 'Running as agent');
 } else {
-  // For main bot: read CLAUDE.md from RAWCLAW_CONFIG and inject it as
-  // systemPrompt — the same pattern used by sub-agents. Never copy the file
-  // into the repo; that defeats the purpose of RAWCLAW_CONFIG and risks
-  // accidentally committing personal config.
-  // Look for CLAUDE.md in RAWCLAW_CONFIG first, then PROJECT_ROOT
-  const externalClaudeMd = path.join(RAWCLAW_CONFIG, 'CLAUDE.md');
   const projectClaudeMd = path.join(PROJECT_ROOT, 'CLAUDE.md');
-  const claudeMdSource = fs.existsSync(externalClaudeMd) ? externalClaudeMd
-    : fs.existsSync(projectClaudeMd) ? projectClaudeMd
-    : null;
-
-  if (claudeMdSource) {
+  if (fs.existsSync(projectClaudeMd)) {
     let systemPrompt: string | undefined;
     try {
-      systemPrompt = fs.readFileSync(claudeMdSource, 'utf-8');
+      systemPrompt = fs.readFileSync(projectClaudeMd, 'utf-8');
     } catch { /* unreadable */ }
     if (systemPrompt) {
       setAgentOverrides({
@@ -75,13 +64,10 @@ if (AGENT_ID !== 'main') {
         cwd: PROJECT_ROOT,
         systemPrompt,
       });
-      logger.info({ source: claudeMdSource }, 'Loaded CLAUDE.md');
+      logger.info({ source: projectClaudeMd }, 'Loaded CLAUDE.md');
     }
   } else {
-    logger.warn(
-      'No CLAUDE.md found. Copy CLAUDE.md.example to %s/CLAUDE.md and customize it.',
-      RAWCLAW_CONFIG,
-    );
+    logger.warn('No CLAUDE.md found at %s.', projectClaudeMd);
   }
 }
 
