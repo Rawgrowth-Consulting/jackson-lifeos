@@ -2648,9 +2648,9 @@ export interface YouTubeSnapshot {
   video_count: number;
 }
 
-/** Upsert today's YouTube snapshot. Called opportunistically on each API fetch. */
-export function recordYouTubeSnapshot(subs: number, views: number, videos: number): void {
-  const date = new Date().toISOString().slice(0, 10);
+/** Upsert a YouTube snapshot. Defaults to today; pass `date` (YYYY-MM-DD) for backfill. */
+export function recordYouTubeSnapshot(subs: number, views: number, videos: number, date?: string): void {
+  const d = date ?? new Date().toISOString().slice(0, 10);
   db.prepare(
     `INSERT INTO youtube_snapshots (date, subscribers, total_views, video_count, created_at)
      VALUES (?, ?, ?, ?, ?)
@@ -2659,7 +2659,7 @@ export function recordYouTubeSnapshot(subs: number, views: number, videos: numbe
        total_views = excluded.total_views,
        video_count = excluded.video_count,
        created_at  = excluded.created_at`,
-  ).run(date, subs, views, videos, Math.floor(Date.now() / 1000));
+  ).run(d, subs, views, videos, Math.floor(Date.now() / 1000));
 }
 
 /** Return snapshots in chronological order (oldest first). */
