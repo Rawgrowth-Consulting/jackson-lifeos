@@ -2413,44 +2413,75 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
   </div>
 
   <style>
-    .org-chart { padding: 20px 10px 40px; }
-    .org-level { display:flex; justify-content:center; gap:16px; flex-wrap:wrap; }
-    .org-dept-row { display:flex; justify-content:center; gap:28px; flex-wrap:wrap; align-items:flex-start; margin-top: 60px; position: relative; }
-    .org-dept-row::before {
-      content: '';
-      position: absolute;
-      top: -32px;
-      left: 50%;
-      width: 2px;
-      height: 32px;
-      background: var(--color-stone-50);
-    }
-    .org-dept {
-      display:flex; flex-direction:column; align-items:center; gap:14px;
+    /* Classic CSS tree: ::before / ::after on each li draw the horizontal
+       bar; the ul above each group draws a vertical stub. First/last child
+       trim the bar on the outer side so the corners look clean. */
+    .tree { padding: 10px 0 40px; overflow-x: auto; }
+    .tree, .tree ul, .tree li { margin: 0; padding: 0; list-style: none; }
+    .tree .root { display: flex; justify-content: center; }
+    .tree ul {
+      display: flex;
+      justify-content: center;
+      padding-top: 36px;
       position: relative;
-      min-width: 180px;
+      flex-wrap: nowrap;
     }
-    .org-dept::before {
+    .tree ul::before {
       content: '';
       position: absolute;
-      top: -30px;
+      top: 0;
       left: 50%;
       width: 2px;
-      height: 30px;
+      height: 18px;
       background: var(--color-stone-50);
     }
-    .org-dept-title {
-      font-size: 11px;
+    .tree li {
+      padding: 18px 12px 0 12px;
+      position: relative;
+      text-align: center;
+    }
+    .tree li::before, .tree li::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      height: 18px;
+      width: 50%;
+      border-top: 2px solid var(--color-stone-50);
+    }
+    .tree li::before { right: 50%; }
+    .tree li::after  { left: 50%; }
+    .tree li:only-child::before, .tree li:only-child::after { display: none; }
+    .tree li:only-child { padding-top: 18px; }
+    .tree li:first-child::before { border: 0; }
+    .tree li:last-child::after  { border: 0; }
+    .tree li:last-child::before {
+      border-right: 2px solid var(--color-stone-50);
+      border-top-right-radius: 6px;
+    }
+    .tree li:first-child::after {
+      border-left: 2px solid var(--color-stone-50);
+      border-top-left-radius: 6px;
+    }
+    /* Vertical stub from a leaf down to its (optional) card wrapper. */
+    .tree .dept-wrap {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .tree .dept-title {
+      font-size: 10px;
       text-transform: uppercase;
-      letter-spacing: 1.2px;
+      letter-spacing: 1.3px;
       font-weight: 700;
       color: var(--color-sage-muted);
-      padding: 4px 12px;
+      padding: 4px 10px;
       background: var(--color-paper);
       border: 1px solid var(--color-stone-50);
       border-radius: 999px;
     }
     .org-card {
+      display: inline-block;
       width: 200px;
       padding: 14px;
       background: #fff;
@@ -2458,6 +2489,7 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
       border-radius: 12px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
       cursor: pointer;
+      text-align: left;
       transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     }
     .org-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: var(--color-sage); }
@@ -2476,8 +2508,7 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
     .org-dot-on { background:#22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
     .org-dot-off { background:#9ca3af; }
     @media (max-width: 768px) {
-      .org-dept-row { gap: 14px; }
-      .org-dept { min-width: 140px; }
+      .tree li { padding: 18px 6px 0 6px; }
       .org-card { width: 160px; }
       .org-card.ceo { width: 200px; }
       .org-card.cos { width: 180px; }
@@ -2523,7 +2554,6 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
       var gurt = agents.find(function(a) { return a.id === 'gurt'; });
       var rest = agents.filter(function(a) { return a.id !== 'gurt'; });
 
-      // Group rest by department
       var byDept = {};
       rest.forEach(function(a) {
         var d = deptFor(a.id);
@@ -2531,7 +2561,6 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
         byDept[d].push(a);
       });
 
-      // Sort departments by fixed order, unknown depts at end alphabetically
       var depts = Object.keys(byDept).sort(function(x, y) {
         var xi = DEPT_ORDER.indexOf(x); var yi = DEPT_ORDER.indexOf(y);
         if (xi === -1 && yi === -1) return x.localeCompare(y);
@@ -2540,54 +2569,57 @@ export function getLifeOSAgentsHtml(authenticated = false): string {
         return xi - yi;
       });
 
-      var html = '<div class="org-chart">';
+      // Build the tree:
+      //   Jackson (root)
+      //     └─ Gurt (if live)
+      //         ├─ Engineering dept-wrap > [card]
+      //         ├─ Content dept-wrap > [card]
+      //         └─ ...
+      var jacksonCard =
+        '<div class="org-card ceo">' +
+          '<div class="org-card-head">' +
+            '<div class="org-avatar">J</div>' +
+            '<div><div class="org-name">Jackson</div><div class="org-role">Founder / CEO</div></div>' +
+          '</div>' +
+        '</div>';
 
-      // Jackson (top)
-      html += '<div class="org-level">';
-      html += '<div class="org-card ceo">' +
-        '<div class="org-card-head">' +
-          '<div class="org-avatar">J</div>' +
-          '<div><div class="org-name">Jackson</div><div class="org-role">Founder / CEO</div></div>' +
-        '</div></div>';
-      html += '</div>';
+      var deptLeaves = depts.map(function(d) {
+        var cards = byDept[d].map(function(a) { return cardHtml(a); }).join('');
+        return '<li>' +
+            '<div class="dept-wrap">' +
+              '<span class="dept-title">' + d + '</span>' +
+              cards +
+            '</div>' +
+          '</li>';
+      }).join('');
 
-      // Gurt (chief of staff)
+      var gurtBranch = '';
       if (gurt) {
-        html += renderRow([{ agent: gurt, cls: 'cos', role: 'Chief of Staff' }], true);
+        gurtBranch =
+          '<ul>' +
+            '<li>' +
+              cardHtml(gurt, 'cos', 'Chief of Staff') +
+              (deptLeaves ? '<ul>' + deptLeaves + '</ul>' : '') +
+            '</li>' +
+          '</ul>';
+      } else if (deptLeaves) {
+        // No Gurt online: hang departments directly under Jackson
+        gurtBranch = '<ul>' + deptLeaves + '</ul>';
       }
 
-      // Departments
-      if (depts.length) {
-        html += '<div class="org-dept-row">';
-        depts.forEach(function(d) {
-          html += '<div class="org-dept">';
-          html += '<div class="org-dept-title">' + d + '</div>';
-          byDept[d].forEach(function(a) {
-            html += cardHtml(a, 'agent');
-          });
-          html += '</div>';
-        });
-        html += '</div>';
-      }
-
-      html += '</div>';
-      container.innerHTML = html;
+      container.innerHTML =
+        '<div class="tree">' +
+          '<div class="root">' +
+            '<div>' +
+              jacksonCard +
+              gurtBranch +
+            '</div>' +
+          '</div>' +
+        '</div>';
     } catch (e) {
       console.error('Org chart load failed:', e);
       container.innerHTML = '<div style="color:var(--color-clay);padding:20px;">Failed to load agents. ' + (e.message || '') + '</div>';
     }
-  }
-
-  function renderRow(items, connectUp) {
-    var html = '<div class="org-level" style="margin-top:60px;position:relative;">';
-    if (connectUp) {
-      html += '<div style="position:absolute;top:-32px;left:50%;width:2px;height:32px;background:var(--color-stone-50);"></div>';
-    }
-    items.forEach(function(it) {
-      html += cardHtml(it.agent, it.cls, it.role);
-    });
-    html += '</div>';
-    return html;
   }
 
   function cardHtml(a, cls, roleOverride) {
